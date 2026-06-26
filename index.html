@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Строительный Трест 11 — Объекты Москва</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+:root {
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --surface2: #273449;
+  --surface3: #334155;
+  --border: #334155;
+  --text: #f1f5f9;
+  --text-dim: #94a3b8;
+  --accent: #3b82f6;
+  --accent-h: #2563eb;
+  --danger: #ef4444;
+  --success: #22c55e;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:var(--text); height:100vh; display:flex; flex-direction:column; overflow:hidden; }
+
+header {
+  background:var(--surface);
+  padding:0 20px; height:52px;
+  display:flex; align-items:center; justify-content:space-between;
+  border-bottom:1px solid var(--border); flex-shrink:0; z-index:100;
+}
+.header-left { display:flex; align-items:center; gap:10px; }
+header h1 { font-size:15px; font-weight:700; }
+.badge { font-size:11px; color:var(--text-dim); background:var(--surface3); padding:2px 8px; border-radius:20px; }
+
+.app-body { flex:1; display:flex; overflow:hidden; }
+#map { flex:1; }
+
+/* Sidebar */
+#sidebar {
+  width:300px;
+  background:var(--surface);
+  display:flex; flex-direction:column;
+  border-right:1px solid var(--border);
+  flex-shrink:0;
+}
+.sb-top {
+  padding:12px;
+  border-bottom:1px solid var(--border);
+  display:flex; flex-direction:column; gap:8px;
+}
+.sb-row { display:flex; gap:8px; }
+
+.btn {
+  padding:8px 14px; border:none; border-radius:8px;
+  cursor:pointer; font-size:13px; font-weight:500;
+  transition:all .15s;
+  display:inline-flex; align-items:center; gap:6px;
+  white-space:nowrap; font-family:inherit;
+}
+.btn-primary { background:var(--accent); color:#fff; flex:1; justify-content:center; }
+.btn-primary:hover { background:var(--accent-h); }
+.btn-ghost { background:var(--surface3); color:var(--text-dim); }
+.btn-ghost:hover { background:#475569; color:var(--text); }
+.btn-icon { background:transparent; color:var(--text-dim); padding:5px 7px; border:none; cursor:pointer; border-radius:6px; transition:all .15s; }
+.btn-icon:hover { background:var(--surface3); color:var(--text); }
+.btn-icon.danger:hover { background:rgba(239,68,68,.15); color:var(--danger); }
+
+.search-filter {
+  background:var(--surface2); border:1.5px solid var(--border);
+  border-radius:8px; color:var(--text); padding:7px 10px;
+  font-size:12px; outline:none; font-family:inherit; width:100%;
+  transition:border-color .15s;
+}
+.search-filter:focus { border-color:var(--accent); }
+.search-filter::placeholder { color:#475569; }
+
+#points-list { flex:1; overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:6px; }
+#points-list::-webkit-scrollbar { width:4px; }
+#points-list::-webkit-scrollbar-thumb { background:var(--surface3); border-radius:4px; }
+
+.point-card {
+  background:var(--surface2); border-radius:9px; padding:10px 12px;
+  cursor:pointer; transition:all .15s;
+  border:2px solid transparent;
+  display:flex; align-items:flex-start; gap:10px;
+}
+.point-card:hover { border-color:var(--surface3); }
+.point-card.active { border-color:var(--accent) !important; }
+.point-card.dimmed { opacity:.38; }
+
+.point-color-col { padding-top:2px; flex-shrink:0; }
+.pt-dot { width:13px; height:13px; border-radius:50%; border:2px solid rgba(255,255,255,.2); }
+.point-info { flex:1; min-width:0; }
+.pt-name { font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:2px; }
+.pt-addr { font-size:11.5px; color:var(--text-dim); line-height:1.4; }
+.point-actions { display:flex; flex-direction:column; gap:2px; flex-shrink:0; }
+
+.empty-state { text-align:center; padding:50px 16px; color:var(--text-dim); font-size:13px; line-height:1.9; }
+
+/* Modal */
+#overlay {
+  display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,.65); z-index:500;
+  align-items:center; justify-content:center;
+}
+#overlay.open { display:flex; }
+#modal {
+  background:var(--surface); border-radius:14px; padding:26px;
+  width:460px; max-width:95vw; max-height:92vh;
+  overflow-y:auto;
+  border:1px solid var(--border);
+  box-shadow:0 24px 64px rgba(0,0,0,.6);
+}
+#modal::-webkit-scrollbar { width:4px; }
+#modal::-webkit-scrollbar-thumb { background:var(--surface3); border-radius:4px; }
+.modal-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:22px; }
+.modal-hdr h2 { font-size:16px; font-weight:700; }
+
+.form-label { font-size:11px; color:var(--text-dim); margin-bottom:5px; display:block; font-weight:600; letter-spacing:.3px; text-transform:uppercase; }
+.form-input {
+  width:100%; background:var(--surface2);
+  border:1.5px solid var(--border); border-radius:8px;
+  color:var(--text); padding:9px 12px; font-size:13px;
+  outline:none; transition:border-color .15s; font-family:inherit;
+}
+.form-input:focus { border-color:var(--accent); }
+.form-input::placeholder { color:#475569; }
+.form-group { margin-bottom:16px; }
+
+.addr-wrap { position:relative; }
+.suggestions {
+  display:none; position:absolute; top:100%; left:0; right:0;
+  background:var(--surface2); border:1.5px solid var(--border); border-top:none;
+  border-radius:0 0 8px 8px; z-index:700; max-height:210px; overflow-y:auto;
+}
+.suggestions.open { display:block; }
+.sug-item {
+  padding:9px 12px; font-size:12px; color:var(--text-dim);
+  cursor:pointer; border-bottom:1px solid var(--border); line-height:1.4;
+}
+.sug-item:last-child { border:none; }
+.sug-item:hover { background:#334155; color:var(--text); }
+.sug-item b { color:var(--text); }
+.coords-hint { font-size:11px; color:#475569; margin-top:5px; min-height:15px; }
+.coords-hint.ok { color:var(--success); }
+
+.palette { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.pal-dot {
+  width:28px; height:28px; border-radius:50%;
+  cursor:pointer; border:3px solid transparent;
+  transition:transform .12s, border-color .12s; flex-shrink:0;
+}
+.pal-dot:hover { transform:scale(1.18); }
+.pal-dot.sel { border-color:#fff; transform:scale(1.1); }
+.pal-divider { width:1px; height:28px; background:var(--border); flex-shrink:0; }
+.color-picker-wrap { position:relative; width:28px; height:28px; flex-shrink:0; }
+.color-picker-wrap input[type=color] {
+  position:absolute; inset:0; width:100%; height:100%;
+  opacity:0; cursor:pointer; border:none; padding:0;
+}
+.color-picker-btn {
+  width:28px; height:28px; border-radius:50%;
+  border:2.5px dashed #64748b;
+  display:flex; align-items:center; justify-content:center;
+  pointer-events:none; transition:border-color .15s;
+  font-size:16px; line-height:1; color:#64748b;
+}
+.color-picker-wrap:hover .color-picker-btn { border-color:#94a3b8; color:#94a3b8; }
+
+.coords-row { display:flex; gap:8px; margin-top:10px; }
+.coords-row .form-input { text-align:center; }
+.or-divider {
+  display:flex; align-items:center; gap:8px;
+  font-size:11px; color:#475569; margin:12px 0;
+}
+.or-divider::before, .or-divider::after {
+  content:''; flex:1; height:1px; background:var(--border);
+}
+
+.modal-footer { display:flex; gap:10px; margin-top:22px; justify-content:flex-end; }
+
+#confirm-overlay {
+  display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,.7); z-index:600;
+  align-items:center; justify-content:center;
+}
+#confirm-overlay.open { display:flex; }
+#confirm-box {
+  background:var(--surface); border-radius:12px; padding:24px;
+  width:300px; max-width:90vw; border:1px solid var(--border); text-align:center;
+}
+#confirm-box p { font-size:14px; margin-bottom:18px; color:var(--text-dim); }
+.cf-btns { display:flex; gap:10px; justify-content:center; }
+.btn-del { background:var(--danger); color:#fff; padding:9px 22px; border:none; border-radius:8px; cursor:pointer; font-size:13px; font-weight:600; }
+.btn-del:hover { background:#dc2626; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>Строительный Трест 11</h1>
+    <span class="badge">Объекты Москва</span>
+  </div>
+  <span id="status" style="font-size:12px;color:#475569;"></span>
+</header>
+
+<div class="app-body">
+  <aside id="sidebar">
+    <div class="sb-top">
+      <div class="sb-row">
+        <button class="btn btn-primary" onclick="openAdd()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Добавить точку
+        </button>
+        <button class="btn btn-ghost" onclick="toggleAll()" title="Показать / скрыть все">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/></svg>
+        </button>
+      </div>
+      <input class="search-filter" id="filter" placeholder="Фильтр по названию или адресу…" oninput="renderList()">
+    </div>
+    <div id="points-list"></div>
+  </aside>
+  <div id="map"></div>
+</div>
+
+<!-- Modal -->
+<div id="overlay">
+  <div id="modal">
+    <div class="modal-hdr">
+      <h2 id="modal-title">Добавить точку</h2>
+      <button class="btn-icon" onclick="closeModal()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Название</label>
+      <input class="form-input" id="inp-name" type="text" placeholder="Например: Склад №1">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Поиск по адресу</label>
+      <div class="addr-wrap">
+        <input class="form-input" id="inp-addr" type="text" placeholder="Введите адрес…" autocomplete="off">
+        <div class="suggestions" id="sug"></div>
+      </div>
+    </div>
+
+    <div class="or-divider">или введите координаты вручную</div>
+
+    <div>
+      <label class="form-label">Широта, Долгота</label>
+      <input class="form-input" id="inp-coords" type="text" placeholder="55.751244, 37.618423" oninput="onManualCoords()" autocomplete="off">
+    </div>
+    <div class="coords-hint" id="coords-hint" style="margin-top:6px;margin-bottom:4px;"></div>
+
+    <div class="form-group" style="margin-top:16px;">
+      <label class="form-label">Цвет</label>
+      <div class="palette" id="palette"></div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-primary" onclick="savePoint()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm -->
+<div id="confirm-overlay">
+  <div id="confirm-box">
+    <p>Удалить эту точку?</p>
+    <div class="cf-btns">
+      <button class="btn btn-ghost" onclick="closeConfirm()">Отмена</button>
+      <button class="btn-del" id="confirm-yes">Удалить</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const PALETTE = [
+  '#ef4444','#f97316','#f59e0b','#eab308','#84cc16','#22c55e',
+  '#10b981','#14b8a6','#06b6d4','#3b82f6','#6366f1','#8b5cf6',
+  '#a855f7','#ec4899','#f43f5e','#fb7185','#94a3b8','#64748b',
+  '#0ea5e9','#d97706','#dc2626','#16a34a','#7c3aed','#db2777'
+];
+
+let points = [];
+let layerMap = {};
+let editId = null;
+let pendingCoords = null;
+let selColor = PALETTE[0];
+let searchTimer = null;
+let prevMarker = null;
+
+// Map
+const map = L.map('map').setView([55.75, 37.62], 11);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution:'© OpenStreetMap', maxZoom:19
+}).addTo(map);
+
+function mkIcon(color) {
+  return L.divIcon({
+    className:'',
+    html:`<div style="width:14px;height:14px;border-radius:50%;background:${color};border:2.5px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.5);"></div>`,
+    iconSize:[14,14], iconAnchor:[7,7], popupAnchor:[0,-10]
+  });
+}
+
+// Persist
+function persist() { localStorage.setItem('st11_points', JSON.stringify(points)); }
+function hydrate() {
+  const raw = localStorage.getItem('st11_points');
+  points = raw ? JSON.parse(raw) : defaultPoints();
+}
+
+// Render map
+function renderMap() {
+  Object.values(layerMap).forEach(m => map.removeLayer(m));
+  layerMap = {};
+  points.forEach(p => {
+    if (p.on === false) return;
+    const m = L.marker(p.coords, { icon: mkIcon(p.color) })
+      .bindPopup(`<b style="color:${p.color}">${p.name}</b><br><span style="font-size:12px">${p.addr}</span>`)
+      .addTo(map);
+    layerMap[p.id] = m;
+  });
+}
+
+// Render sidebar
+function renderList() {
+  const q = document.getElementById('filter').value.toLowerCase();
+  const el = document.getElementById('points-list');
+  const filtered = q
+    ? points.filter(p => p.name.toLowerCase().includes(q) || p.addr.toLowerCase().includes(q))
+    : points;
+
+  if (!filtered.length) {
+    el.innerHTML = `<div class="empty-state">${q ? 'Ничего не найдено.' : 'Нет точек.<br>Нажмите «Добавить точку».'}</div>`;
+    return;
+  }
+  el.innerHTML = '';
+  filtered.forEach(p => {
+    const d = document.createElement('div');
+    d.className = 'point-card' + (p.on === false ? ' dimmed' : '');
+    d.dataset.id = p.id;
+    d.innerHTML = `
+      <div class="point-color-col"><div class="pt-dot" style="background:${p.color}"></div></div>
+      <div class="point-info">
+        <div class="pt-name">${p.name}</div>
+        <div class="pt-addr">${p.addr}</div>
+      </div>
+      <div class="point-actions">
+        <button class="btn-icon" onclick="toggleOne('${p.id}',event)" title="${p.on===false?'Показать':'Скрыть'}">
+          ${p.on === false
+            ? `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M1 1l22 22"/></svg>`
+            : `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`}
+        </button>
+        <button class="btn-icon" onclick="openEdit('${p.id}',event)" title="Редактировать">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <button class="btn-icon danger" onclick="askDelete('${p.id}',event)" title="Удалить">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        </button>
+      </div>`;
+    d.addEventListener('click', () => zoomTo(p.id));
+    el.appendChild(d);
+  });
+}
+
+function fullRender() { renderMap(); renderList(); updateStatus(); }
+function updateStatus() {
+  const vis = points.filter(p => p.on !== false).length;
+  document.getElementById('status').textContent = points.length + ' точек · ' + vis + ' видимых';
+}
+
+// Zoom
+function zoomTo(id) {
+  const m = layerMap[id];
+  if (!m) return;
+  map.setView(m.getLatLng(), 16);
+  m.openPopup();
+  document.querySelectorAll('.point-card').forEach(c => c.classList.remove('active'));
+  const card = document.querySelector(`.point-card[data-id="${id}"]`);
+  if (card) { card.classList.add('active'); card.scrollIntoView({ block:'nearest' }); }
+}
+
+// Toggle
+function toggleOne(id, e) {
+  e.stopPropagation();
+  const p = points.find(x => x.id === id);
+  p.on = p.on === false;
+  persist(); fullRender();
+}
+function toggleAll() {
+  const anyOn = points.some(p => p.on !== false);
+  points.forEach(p => p.on = !anyOn);
+  persist(); fullRender();
+}
+
+// Delete
+let pendingDelete = null;
+function askDelete(id, e) {
+  e.stopPropagation();
+  pendingDelete = id;
+  document.getElementById('confirm-overlay').classList.add('open');
+}
+function closeConfirm() { pendingDelete = null; document.getElementById('confirm-overlay').classList.remove('open'); }
+document.getElementById('confirm-yes').onclick = () => {
+  points = points.filter(p => p.id !== pendingDelete);
+  persist(); closeConfirm(); fullRender();
+};
+
+// Modal
+function buildPalette() {
+  const el = document.getElementById('palette');
+  el.innerHTML = '';
+  PALETTE.forEach(c => {
+    const d = document.createElement('div');
+    d.className = 'pal-dot' + (c === selColor ? ' sel' : '');
+    d.style.background = c;
+    d.onclick = () => { selColor = c; buildPalette(); };
+    el.appendChild(d);
+  });
+  // divider
+  const div = document.createElement('div');
+  div.className = 'pal-divider';
+  el.appendChild(div);
+  // custom color picker
+  const wrap = document.createElement('div');
+  wrap.className = 'color-picker-wrap';
+  wrap.title = 'Любой цвет';
+  const inp = document.createElement('input');
+  inp.type = 'color';
+  inp.value = selColor;
+  inp.addEventListener('input', e => { selColor = e.target.value; buildPalette(); });
+  const btn = document.createElement('div');
+  btn.className = 'color-picker-btn';
+  btn.style.background = PALETTE.includes(selColor) ? 'transparent' : selColor;
+  btn.style.border = PALETTE.includes(selColor) ? '2.5px dashed #64748b' : '3px solid #fff';
+  btn.textContent = PALETTE.includes(selColor) ? '+' : '';
+  wrap.appendChild(inp);
+  wrap.appendChild(btn);
+  el.appendChild(wrap);
+}
+
+function clearPrev() {
+  if (prevMarker) { map.removeLayer(prevMarker); prevMarker = null; }
+}
+
+function setHint(coords) {
+  const el = document.getElementById('coords-hint');
+  if (coords) { el.textContent = coords[0].toFixed(6) + ', ' + coords[1].toFixed(6); el.className = 'coords-hint ok'; }
+  else { el.textContent = ''; el.className = 'coords-hint'; }
+}
+
+function setLatLonFields(coords) {
+  document.getElementById('inp-coords').value = coords ? coords[0] + ', ' + coords[1] : '';
+}
+
+function onManualCoords() {
+  const raw = document.getElementById('inp-coords').value;
+  const parts = raw.split(',').map(s => parseFloat(s.trim()));
+  const [lat, lon] = parts;
+  if (parts.length >= 2 && !isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+    pendingCoords = [lat, lon];
+    setHint([lat, lon]);
+    clearPrev();
+    prevMarker = L.marker([lat, lon], { icon: mkIcon(selColor) }).addTo(map);
+    map.setView([lat, lon], map.getZoom() < 14 ? 14 : map.getZoom());
+  } else {
+    setHint(null);
+  }
+}
+
+function openAdd() {
+  editId = null; pendingCoords = null;
+  selColor = PALETTE[points.length % PALETTE.length];
+  document.getElementById('modal-title').textContent = 'Добавить точку';
+  document.getElementById('inp-name').value = '';
+  document.getElementById('inp-addr').value = '';
+  setLatLonFields(null);
+  setHint(null); clearPrev(); buildPalette();
+  document.getElementById('overlay').classList.add('open');
+}
+
+function openEdit(id, e) {
+  e.stopPropagation();
+  const p = points.find(x => x.id === id);
+  if (!p) return;
+  editId = id; pendingCoords = [...p.coords]; selColor = p.color;
+  document.getElementById('modal-title').textContent = 'Редактировать точку';
+  document.getElementById('inp-name').value = p.name;
+  document.getElementById('inp-addr').value = p.addr;
+  setLatLonFields(p.coords);
+  setHint(p.coords); clearPrev(); buildPalette();
+  document.getElementById('overlay').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('overlay').classList.remove('open');
+  document.getElementById('sug').classList.remove('open');
+  clearPrev();
+}
+
+document.getElementById('overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('overlay')) closeModal();
+});
+
+// Address search
+const addrInp = document.getElementById('inp-addr');
+const sugEl = document.getElementById('sug');
+
+addrInp.addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  const q = addrInp.value.trim();
+  if (q.length < 3) { sugEl.classList.remove('open'); return; }
+  searchTimer = setTimeout(() => doSearch(q), 380);
+});
+addrInp.addEventListener('blur', () => setTimeout(() => sugEl.classList.remove('open'), 200));
+
+async function doSearch(q) {
+  sugEl.innerHTML = '<div class="sug-item" style="color:#475569">Поиск…</div>';
+  sugEl.classList.add('open');
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q + ' Москва')}&format=json&limit=6&countrycodes=ru&accept-language=ru`;
+    const data = await (await fetch(url, { headers:{'User-Agent':'ST11/1.0'} })).json();
+    sugEl.innerHTML = '';
+    if (!data.length) { sugEl.innerHTML = '<div class="sug-item" style="color:#475569">Ничего не найдено</div>'; return; }
+    data.forEach(item => {
+      const parts = item.display_name.split(',');
+      const d = document.createElement('div');
+      d.className = 'sug-item';
+      d.innerHTML = `<b>${parts[0]}</b>${parts.slice(1,3).join(',') ? ', '+parts.slice(1,3).join(',') : ''}`;
+      d.addEventListener('mousedown', () => pickAddr(item));
+      sugEl.appendChild(d);
+    });
+  } catch {
+    sugEl.innerHTML = '<div class="sug-item" style="color:#475569">Ошибка соединения</div>';
+  }
+}
+
+function pickAddr(item) {
+  pendingCoords = [parseFloat(item.lat), parseFloat(item.lon)];
+  const label = item.display_name.split(',').slice(0,2).join(',').trim();
+  addrInp.value = label;
+  sugEl.classList.remove('open');
+  setHint(pendingCoords);
+  setLatLonFields(pendingCoords);
+  clearPrev();
+  prevMarker = L.marker(pendingCoords, { icon: mkIcon(selColor) }).addTo(map);
+  map.setView(pendingCoords, 16);
+}
+
+// Save
+function savePoint() {
+  const name = document.getElementById('inp-name').value.trim();
+  const addr = document.getElementById('inp-addr').value.trim();
+  if (!name) { alert('Введите название точки.'); return; }
+  if (!pendingCoords) { alert('Выберите адрес из подсказок.'); return; }
+  if (editId) {
+    const p = points.find(x => x.id === editId);
+    Object.assign(p, { name, addr, color: selColor, coords: pendingCoords });
+  } else {
+    points.push({ id: Date.now()+'', name, addr, color: selColor, coords: pendingCoords, on: true });
+  }
+  persist(); closeModal(); fullRender();
+}
+
+// Default data (24 individual points from original pairs)
+function defaultPoints() {
+  return [
+    { id:'1',  name:'Электрозаводская, 24',          addr:'Электрозаводская, 24',          color:'#e94560', on:true, coords:[55.7889129,37.7076559] },
+    { id:'2',  name:'Малая Семёновская, 3а',          addr:'Малая Семёновская, 3а',          color:'#e94560', on:true, coords:[55.7856520,37.7061786] },
+    { id:'3',  name:'Шверника, 4с2',                  addr:'Шверника, 4с2',                  color:'#00b4d8', on:true, coords:[55.6928406,37.5801545] },
+    { id:'4',  name:'пр-т 60-летия Октября, 14',      addr:'пр-т 60-летия Октября, 14',      color:'#00b4d8', on:true, coords:[55.6914863,37.5748646] },
+    { id:'5',  name:'Академика Скрябина, 9К2 Стр3',   addr:'Академика Скрябина, 9К2 Стр3',   color:'#06d6a0', on:true, coords:[55.7115674,37.7985520] },
+    { id:'6',  name:'Рязанский пр-т, 76/2',           addr:'Рязанский пр-т, 76/2',           color:'#06d6a0', on:true, coords:[55.7110577,37.8165213] },
+    { id:'7',  name:'2-я Звенигородская, 13с41',      addr:'2-я Звенигородская, 13с41',      color:'#ffd166', on:true, coords:[55.7624959,37.5519418] },
+    { id:'8',  name:'Мантулинская, 2',                addr:'Мантулинская, 2',                color:'#ffd166', on:true, coords:[55.7568092,37.5573652] },
+    { id:'9',  name:'Маршала Тухачевского, 51',       addr:'Маршала Тухачевского, 51',       color:'#f77f00', on:true, coords:[55.7842906,37.4601883] },
+    { id:'10', name:'Маршала Тухачевского, 18',       addr:'Маршала Тухачевского, 18',       color:'#f77f00', on:true, coords:[55.7831123,37.4836506] },
+    { id:'11', name:'2-я Филёвская, 6к5',             addr:'2-я Филёвская, 6к5',             color:'#c77dff', on:true, coords:[55.7358624,37.4942778] },
+    { id:'12', name:'Барклая, 6к6с1',                 addr:'Барклая, 6к6с1',                 color:'#c77dff', on:true, coords:[55.7391664,37.5082154] },
+    { id:'13', name:'Сокольнический Вал, 24к2',       addr:'Сокольнический Вал, 24к2',       color:'#ef233c', on:true, coords:[55.7913251,37.6636954] },
+    { id:'14', name:'Жебрунова, 6с24',                addr:'Жебрунова, 6с24',                color:'#ef233c', on:true, coords:[55.7843515,37.6820933] },
+    { id:'15', name:'Белоречанская, 13к3',            addr:'Белоречанская, 13к3',            color:'#48cae4', on:true, coords:[55.673189, 37.766441 ] },
+    { id:'16', name:'ЮВАО Люблино',                   addr:'ЮВАО Люблино',                   color:'#48cae4', on:true, coords:[55.677325, 37.755227 ] },
+    { id:'17', name:'Николо-Хованская, 28с5',         addr:'Николо-Хованская, 28с5',         color:'#80b918', on:true, coords:[55.589310, 37.454034 ] },
+    { id:'18', name:'Николо-Хованское, опора д21/22', addr:'Николо-Хованское, опора д21/22', color:'#80b918', on:true, coords:[55.592764, 37.450055 ] },
+    { id:'19', name:'Электролитный пр., 5Б',          addr:'Электролитный пр., 5Б',          color:'#ff9f1c', on:true, coords:[55.6704183,37.6131569] },
+    { id:'20', name:'Электролитный пр., у д.3к1с2',  addr:'Электролитный пр., у д.3к1с2',  color:'#ff9f1c', on:true, coords:[55.6745596,37.6156203] },
+    { id:'21', name:'Новинский б-р, 18с1',            addr:'Новинский б-р, 18с1',            color:'#ff6b9d', on:true, coords:[55.7549700,37.5846208] },
+    { id:'22', name:'Поварская, 38с1',                addr:'Поварская, 38с1',                color:'#ff6b9d', on:true, coords:[55.7561754,37.5907499] },
+    { id:'23', name:'р-н Левобережный',               addr:'р-н Левобережный',               color:'#a0c4ff', on:true, coords:[55.8650743,37.4691831] },
+    { id:'24', name:'Беломорская, 36',                addr:'Беломорская, 36',                color:'#a0c4ff', on:true, coords:[55.8665331,37.4804536] }
+  ];
+}
+
+hydrate();
+fullRender();
+</script>
+</body>
+</html>
