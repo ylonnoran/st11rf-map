@@ -2,721 +2,727 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Строительный Трест 11 — Объекты Москва</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Строительный Трест 11</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
 :root {
-  --bg: #0f172a;
-  --surface: #1e293b;
-  --surface2: #273449;
-  --surface3: #334155;
-  --border: #334155;
-  --text: #f1f5f9;
-  --text-dim: #94a3b8;
-  --accent: #3b82f6;
-  --accent-h: #2563eb;
-  --danger: #ef4444;
-  --success: #22c55e;
+  --bg:       #0f172a;
+  --surf:     #1e293b;
+  --surf2:    #273449;
+  --surf3:    #334155;
+  --border:   #334155;
+  --txt:      #f1f5f9;
+  --dim:      #94a3b8;
+  --accent:   #3b82f6;
+  --accentH:  #2563eb;
+  --danger:   #ef4444;
+  --ok:       #22c55e;
+  --hdr:      48px;
 }
-* { margin:0; padding:0; box-sizing:border-box; }
-body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:var(--text); height:100vh; display:flex; flex-direction:column; overflow:hidden; }
 
-header {
-  background:var(--surface);
-  padding:0 20px; height:52px;
-  display:flex; align-items:center; justify-content:space-between;
-  border-bottom:1px solid var(--border); flex-shrink:0; z-index:100;
+html, body {
+  height: 100%;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--txt);
+  overflow: hidden;
 }
-.header-left { display:flex; align-items:center; gap:10px; }
-header h1 { font-size:15px; font-weight:700; }
-.badge { font-size:11px; color:var(--text-dim); background:var(--surface3); padding:2px 8px; border-radius:20px; }
 
-.app-body { flex:1; display:flex; overflow:hidden; }
-#map { flex:1; }
+/* ── Header ─────────────────────────────────────────────── */
+#hdr {
+  position: fixed; top: 0; left: 0; right: 0;
+  height: var(--hdr);
+  background: var(--surf);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px;
+  z-index: 1100;
+}
+#hdr h1 { font-size: 14px; font-weight: 700; }
+#hdr-right { display: flex; align-items: center; gap: 10px; }
+#status-txt { font-size: 11px; color: #475569; }
 
-/* Sidebar */
+/* ── Layout ──────────────────────────────────────────────── */
+#map {
+  position: fixed;
+  top: var(--hdr); left: 0; right: 0; bottom: 0;
+  z-index: 0;
+}
+
+/* ── Sidebar (desktop) ───────────────────────────────────── */
 #sidebar {
-  width:300px;
-  background:var(--surface);
-  display:flex; flex-direction:column;
-  border-right:1px solid var(--border);
-  flex-shrink:0;
+  position: fixed;
+  top: var(--hdr); left: 0; bottom: 0;
+  width: 300px;
+  background: var(--surf);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  z-index: 1000;
 }
-.sb-top {
-  padding:12px;
-  border-bottom:1px solid var(--border);
-  display:flex; flex-direction:column; gap:8px;
+/* push map right on desktop */
+@media (min-width: 769px) {
+  #map { left: 300px; }
 }
-.sb-row { display:flex; gap:8px; }
 
+.sb-head {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 8px;
+  flex-shrink: 0;
+}
+.sb-row { display: flex; gap: 8px; }
+
+#pts-list {
+  flex: 1; overflow-y: auto;
+  padding: 10px; display: flex; flex-direction: column; gap: 6px;
+}
+#pts-list::-webkit-scrollbar { width: 4px; }
+#pts-list::-webkit-scrollbar-thumb { background: var(--surf3); border-radius: 4px; }
+
+/* ── Buttons ─────────────────────────────────────────────── */
 .btn {
-  padding:8px 14px; border:none; border-radius:8px;
-  cursor:pointer; font-size:13px; font-weight:500;
-  transition:all .15s;
-  display:inline-flex; align-items:center; gap:6px;
-  white-space:nowrap; font-family:inherit;
+  padding: 9px 14px; border: none; border-radius: 8px;
+  cursor: pointer; font-size: 13px; font-weight: 500;
+  font-family: inherit; display: inline-flex; align-items: center;
+  gap: 6px; white-space: nowrap; transition: background .15s, color .15s;
+  -webkit-tap-highlight-color: transparent;
 }
-.btn-primary { background:var(--accent); color:#fff; flex:1; justify-content:center; }
-.btn-primary:hover { background:var(--accent-h); }
-.btn-ghost { background:var(--surface3); color:var(--text-dim); }
-.btn-ghost:hover { background:#475569; color:var(--text); }
-.btn-icon { background:transparent; color:var(--text-dim); padding:5px 7px; border:none; cursor:pointer; border-radius:6px; transition:all .15s; }
-.btn-icon:hover { background:var(--surface3); color:var(--text); }
-.btn-icon.danger:hover { background:rgba(239,68,68,.15); color:var(--danger); }
-
-.search-filter {
-  background:var(--surface2); border:1.5px solid var(--border);
-  border-radius:8px; color:var(--text); padding:7px 10px;
-  font-size:12px; outline:none; font-family:inherit; width:100%;
-  transition:border-color .15s;
+.btn-primary { background: var(--accent); color: #fff; flex: 1; justify-content: center; }
+.btn-primary:hover, .btn-primary:active { background: var(--accentH); }
+.btn-ghost  { background: var(--surf3); color: var(--dim); }
+.btn-ghost:hover, .btn-ghost:active { background: #475569; color: var(--txt); }
+.btn-icon {
+  background: transparent; border: none; cursor: pointer;
+  color: var(--dim); padding: 6px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s, color .15s;
+  -webkit-tap-highlight-color: transparent;
 }
-.search-filter:focus { border-color:var(--accent); }
-.search-filter::placeholder { color:#475569; }
+.btn-icon:hover, .btn-icon:active { background: var(--surf3); color: var(--txt); }
+.btn-icon.red:hover, .btn-icon.red:active { background: rgba(239,68,68,.15); color: var(--danger); }
 
-#points-list { flex:1; overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:6px; }
-#points-list::-webkit-scrollbar { width:4px; }
-#points-list::-webkit-scrollbar-thumb { background:var(--surface3); border-radius:4px; }
-
-.point-card {
-  background:var(--surface2); border-radius:9px; padding:10px 12px;
-  cursor:pointer; transition:all .15s;
-  border:2px solid transparent;
-  display:flex; align-items:flex-start; gap:10px;
+/* ── Filter ──────────────────────────────────────────────── */
+.filter-inp {
+  width: 100%; background: var(--surf2);
+  border: 1.5px solid var(--border); border-radius: 8px;
+  color: var(--txt); padding: 8px 10px;
+  font-size: 12px; outline: none; font-family: inherit;
+  transition: border-color .15s;
 }
-.point-card:hover { border-color:var(--surface3); }
-.point-card.active { border-color:var(--accent) !important; }
-.point-card.dimmed { opacity:.38; }
+.filter-inp:focus { border-color: var(--accent); }
+.filter-inp::placeholder { color: #475569; }
 
-.point-color-col { padding-top:2px; flex-shrink:0; }
-.pt-dot { width:13px; height:13px; border-radius:50%; border:2px solid rgba(255,255,255,.2); }
-.point-info { flex:1; min-width:0; }
-.pt-name { font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:2px; }
-.pt-addr { font-size:11.5px; color:var(--text-dim); line-height:1.4; }
-.point-actions { display:flex; flex-direction:column; gap:2px; flex-shrink:0; }
+/* ── Point cards ─────────────────────────────────────────── */
+.pt-card {
+  background: var(--surf2); border-radius: 9px;
+  padding: 10px 12px; cursor: pointer;
+  border: 2px solid transparent; transition: border-color .15s;
+  display: flex; align-items: flex-start; gap: 10px;
+  -webkit-tap-highlight-color: transparent;
+}
+.pt-card:hover { border-color: var(--surf3); }
+.pt-card.active { border-color: var(--accent) !important; }
+.pt-card.off { opacity: .35; }
 
-.empty-state { text-align:center; padding:50px 16px; color:var(--text-dim); font-size:13px; line-height:1.9; }
+.pt-dot { width:13px; height:13px; border-radius:50%; flex-shrink:0; margin-top:2px; border:2px solid rgba(255,255,255,.2); }
+.pt-body { flex:1; min-width:0; }
+.pt-name { font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.pt-addr { font-size:11px; color:var(--dim); line-height:1.4; margin-top:2px; }
+.pt-acts { display:flex; flex-direction:column; gap:2px; flex-shrink:0; }
 
-/* Modal */
+.empty { text-align:center; padding:50px 12px; color:var(--dim); font-size:13px; line-height:1.9; }
+
+/* ── Modal ───────────────────────────────────────────────── */
 #overlay {
-  display:none; position:fixed; inset:0;
-  background:rgba(0,0,0,.65); z-index:500;
-  align-items:center; justify-content:center;
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.7); z-index: 2000;
+  align-items: center; justify-content: center;
 }
-#overlay.open { display:flex; }
-#modal {
-  background:var(--surface); border-radius:14px; padding:26px;
-  width:460px; max-width:95vw; max-height:92vh;
-  overflow-y:auto;
-  border:1px solid var(--border);
-  box-shadow:0 24px 64px rgba(0,0,0,.6);
-}
-#modal::-webkit-scrollbar { width:4px; }
-#modal::-webkit-scrollbar-thumb { background:var(--surface3); border-radius:4px; }
-.modal-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:22px; }
-.modal-hdr h2 { font-size:16px; font-weight:700; }
+#overlay.on { display: flex; }
 
-.form-label { font-size:11px; color:var(--text-dim); margin-bottom:5px; display:block; font-weight:600; letter-spacing:.3px; text-transform:uppercase; }
-.form-input {
-  width:100%; background:var(--surface2);
-  border:1.5px solid var(--border); border-radius:8px;
-  color:var(--text); padding:9px 12px; font-size:13px;
-  outline:none; transition:border-color .15s; font-family:inherit;
+#modal {
+  background: var(--surf); border-radius: 14px;
+  padding: 24px; width: 460px; max-width: 96vw;
+  max-height: 90dvh; overflow-y: auto;
+  border: 1px solid var(--border);
+  box-shadow: 0 24px 64px rgba(0,0,0,.7);
 }
-.form-input:focus { border-color:var(--accent); }
-.form-input::placeholder { color:#475569; }
-.form-group { margin-bottom:16px; }
+#modal::-webkit-scrollbar { width: 4px; }
+#modal::-webkit-scrollbar-thumb { background: var(--surf3); border-radius: 4px; }
+
+.m-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+.m-hdr h2 { font-size:16px; font-weight:700; }
+
+.lbl { font-size:10.5px; color:var(--dim); font-weight:700; letter-spacing:.4px; text-transform:uppercase; display:block; margin-bottom:5px; }
+.inp {
+  width:100%; background:var(--surf2);
+  border:1.5px solid var(--border); border-radius:8px;
+  color:var(--txt); padding:9px 12px; font-size:13px;
+  outline:none; font-family:inherit; transition:border-color .15s;
+}
+.inp:focus { border-color:var(--accent); }
+.inp::placeholder { color:#475569; }
+.fg { margin-bottom:15px; }
 
 .addr-wrap { position:relative; }
-.suggestions {
+.sugg {
   display:none; position:absolute; top:100%; left:0; right:0;
-  background:var(--surface2); border:1.5px solid var(--border); border-top:none;
-  border-radius:0 0 8px 8px; z-index:700; max-height:210px; overflow-y:auto;
+  background:var(--surf2); border:1.5px solid var(--border); border-top:none;
+  border-radius:0 0 8px 8px; z-index:2100; max-height:200px; overflow-y:auto;
 }
-.suggestions.open { display:block; }
-.sug-item {
-  padding:9px 12px; font-size:12px; color:var(--text-dim);
+.sugg.on { display:block; }
+.sg {
+  padding:9px 12px; font-size:12px; color:var(--dim);
   cursor:pointer; border-bottom:1px solid var(--border); line-height:1.4;
 }
-.sug-item:last-child { border:none; }
-.sug-item:hover { background:#334155; color:var(--text); }
-.sug-item b { color:var(--text); }
-.coords-hint { font-size:11px; color:#475569; margin-top:5px; min-height:15px; }
-.coords-hint.ok { color:var(--success); }
+.sg:last-child { border:none; }
+.sg:hover, .sg:active { background:var(--surf3); color:var(--txt); }
+.sg b { color:var(--txt); }
 
-.palette { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
-.pal-dot {
-  width:28px; height:28px; border-radius:50%;
-  cursor:pointer; border:3px solid transparent;
-  transition:transform .12s, border-color .12s; flex-shrink:0;
-}
-.pal-dot:hover { transform:scale(1.18); }
-.pal-dot.sel { border-color:#fff; transform:scale(1.1); }
-.pal-divider { width:1px; height:28px; background:var(--border); flex-shrink:0; }
-.color-picker-wrap { position:relative; width:28px; height:28px; flex-shrink:0; }
-.color-picker-wrap input[type=color] {
-  position:absolute; inset:0; width:100%; height:100%;
-  opacity:0; cursor:pointer; border:none; padding:0;
-}
-.color-picker-btn {
-  width:28px; height:28px; border-radius:50%;
-  border:2.5px dashed #64748b;
-  display:flex; align-items:center; justify-content:center;
-  pointer-events:none; transition:border-color .15s;
-  font-size:16px; line-height:1; color:#64748b;
-}
-.color-picker-wrap:hover .color-picker-btn { border-color:#94a3b8; color:#94a3b8; }
-
-.coords-row { display:flex; gap:8px; margin-top:10px; }
-.coords-row .form-input { text-align:center; }
-.or-divider {
+.or-line {
   display:flex; align-items:center; gap:8px;
   font-size:11px; color:#475569; margin:12px 0;
 }
-.or-divider::before, .or-divider::after {
-  content:''; flex:1; height:1px; background:var(--border);
+.or-line::before, .or-line::after { content:''; flex:1; height:1px; background:var(--border); }
+
+.coord-hint { font-size:11px; margin-top:5px; min-height:16px; color:#475569; }
+.coord-hint.ok { color:var(--ok); }
+
+/* palette */
+.pal { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.pal-c {
+  width:28px; height:28px; border-radius:50%;
+  cursor:pointer; border:3px solid transparent;
+  flex-shrink:0; transition:transform .12s, border-color .12s;
+  -webkit-tap-highlight-color: transparent;
+}
+.pal-c:hover { transform:scale(1.15); }
+.pal-c.sel { border-color:#fff; transform:scale(1.1); }
+.pal-sep { width:1px; height:26px; background:var(--border); flex-shrink:0; }
+.pal-custom { position:relative; width:28px; height:28px; flex-shrink:0; }
+.pal-custom input[type=color] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; border:none; }
+.pal-custom-face {
+  width:28px; height:28px; border-radius:50%;
+  border:2.5px dashed #475569;
+  display:flex; align-items:center; justify-content:center;
+  pointer-events:none; font-size:17px; color:#475569; line-height:1;
 }
 
-/* ── Mobile ────────────────────────────────────────────── */
-.drag-handle {
-  display:none;
-  width:36px; height:4px; background:var(--surface3);
-  border-radius:2px; margin:10px auto 4px; flex-shrink:0;
-}
-#mob-toggle {
-  display:none;
-  background:var(--accent); color:#fff;
-  border:none; border-radius:50%;
-  width:52px; height:52px;
-  align-items:center; justify-content:center;
-  position:fixed; bottom:20px; right:20px;
-  z-index:300; cursor:pointer;
-  box-shadow:0 4px 16px rgba(59,130,246,.5);
-  transition:transform .15s;
-}
-#mob-toggle:active { transform:scale(.93); }
-#mob-overlay {
+.m-foot { display:flex; gap:10px; margin-top:20px; justify-content:flex-end; }
+
+/* ── Confirm dialog ──────────────────────────────────────── */
+#conf-overlay {
   display:none; position:fixed; inset:0;
-  z-index:199; background:transparent;
-}
-#mob-overlay.open { display:block; }
-
-@media (max-width: 768px) {
-  header { padding:0 14px; height:48px; }
-  header h1 { font-size:14px; }
-  .badge { display:none; }
-  #status { font-size:11px !important; }
-
-  .app-body { position:relative; }
-
-  #map { position:absolute; inset:0; height:100% !important; }
-
-  #sidebar {
-    position:fixed;
-    bottom:0; left:0; right:0;
-    width:100%; height:70vh;
-    border-right:none;
-    border-top:1px solid var(--border);
-    border-radius:18px 18px 0 0;
-    transform:translateY(100%);
-    transition:transform .3s cubic-bezier(.4,0,.2,1);
-    z-index:200;
-    box-shadow:0 -8px 32px rgba(0,0,0,.4);
-  }
-  #sidebar.open { transform:translateY(0); }
-
-  .drag-handle { display:block; }
-
-  #mob-toggle { display:flex; }
-  #mob-toggle.hidden { display:none; }
-
-  .sb-top { padding:10px 12px; }
-  #points-list { padding:8px 10px; }
-
-  .point-card { padding:10px; }
-  .btn-icon { padding:7px; }
-
-  /* Modal as bottom sheet */
-  #overlay { align-items:flex-end; }
-  #modal {
-    width:100%; max-width:100%;
-    border-radius:18px 18px 0 0;
-    max-height:90vh;
-    padding:20px 18px 32px;
-    border-left:none; border-right:none; border-bottom:none;
-  }
-  .modal-hdr { margin-bottom:16px; }
-
-  /* Suggestions inside modal need higher z-index on mobile */
-  .suggestions { z-index:800; }
-}
-
-.modal-footer { display:flex; gap:10px; margin-top:22px; justify-content:flex-end; }
-
-#confirm-overlay {
-  display:none; position:fixed; inset:0;
-  background:rgba(0,0,0,.7); z-index:600;
+  background:rgba(0,0,0,.75); z-index:2200;
   align-items:center; justify-content:center;
 }
-#confirm-overlay.open { display:flex; }
-#confirm-box {
-  background:var(--surface); border-radius:12px; padding:24px;
-  width:300px; max-width:90vw; border:1px solid var(--border); text-align:center;
+#conf-overlay.on { display:flex; }
+#conf-box {
+  background:var(--surf); border-radius:12px; padding:24px;
+  width:300px; max-width:90vw; text-align:center;
+  border:1px solid var(--border);
 }
-#confirm-box p { font-size:14px; margin-bottom:18px; color:var(--text-dim); }
-.cf-btns { display:flex; gap:10px; justify-content:center; }
+#conf-box p { font-size:14px; color:var(--dim); margin-bottom:18px; }
+.conf-row { display:flex; gap:10px; justify-content:center; }
 .btn-del { background:var(--danger); color:#fff; padding:9px 22px; border:none; border-radius:8px; cursor:pointer; font-size:13px; font-weight:600; }
 .btn-del:hover { background:#dc2626; }
+
+/* ── Mobile ──────────────────────────────────────────────── */
+#fab {
+  display: none;
+  position: fixed; bottom: 20px; right: 20px;
+  z-index: 1050;
+  width: 54px; height: 54px; border-radius: 50%;
+  background: var(--accent); color: #fff; border: none;
+  align-items: center; justify-content: center;
+  box-shadow: 0 4px 20px rgba(59,130,246,.55);
+  cursor: pointer; transition: transform .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+#fab:active { transform: scale(.92); }
+
+#sb-backdrop {
+  display: none; position: fixed; inset: 0;
+  z-index: 999; background: rgba(0,0,0,.5);
+}
+#sb-backdrop.on { display: block; }
+
+.drag-bar {
+  display: none;
+  width: 40px; height: 4px; border-radius: 2px;
+  background: var(--surf3); margin: 10px auto 6px; flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  #sidebar {
+    top: auto;
+    bottom: 0; left: 0; right: 0;
+    width: 100%; height: 65dvh;
+    border-right: none;
+    border-top: 1px solid var(--border);
+    border-radius: 18px 18px 0 0;
+    transform: translateY(100%);
+    transition: transform .28s cubic-bezier(.4,0,.2,1);
+    z-index: 1050;
+    box-shadow: 0 -6px 30px rgba(0,0,0,.5);
+  }
+  #sidebar.on { transform: translateY(0); }
+
+  .drag-bar { display: block; }
+  #fab { display: flex; }
+
+  #modal {
+    width: 100%; max-width: 100%;
+    border-radius: 18px 18px 0 0;
+    border-left: none; border-right: none; border-bottom: none;
+    max-height: 92dvh;
+    padding: 20px 16px 36px;
+  }
+  #overlay { align-items: flex-end; }
+
+  .pt-acts { flex-direction: row; }
+}
 </style>
 </head>
 <body>
 
-<header>
-  <div class="header-left">
-    <h1>Строительный Трест 11</h1>
-    <span class="badge">Объекты Москва</span>
+<div id="hdr">
+  <h1>Строительный Трест 11</h1>
+  <div id="hdr-right">
+    <span id="status-txt"></span>
+    <button class="btn-icon" onclick="toggleAll()" title="Показать / скрыть все">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/></svg>
+    </button>
   </div>
-  <span id="status" style="font-size:12px;color:#475569;"></span>
-</header>
-
-<div class="app-body">
-  <aside id="sidebar">
-    <div class="drag-handle" id="drag-handle"></div>
-    <div class="sb-top">
-      <div class="sb-row">
-        <button class="btn btn-primary" onclick="openAdd()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Добавить точку
-        </button>
-        <button class="btn btn-ghost" onclick="toggleAll()" title="Показать / скрыть все">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/></svg>
-        </button>
-      </div>
-      <input class="search-filter" id="filter" placeholder="Фильтр по названию или адресу…" oninput="renderList()">
-    </div>
-    <div id="points-list"></div>
-  </aside>
-  <div id="map"></div>
 </div>
 
+<div id="map"></div>
+
+<aside id="sidebar">
+  <div class="drag-bar" id="drag-bar"></div>
+  <div class="sb-head">
+    <div class="sb-row">
+      <button class="btn btn-primary" onclick="openAdd()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Добавить точку
+      </button>
+    </div>
+    <input class="filter-inp" id="filter" placeholder="Поиск по названию или адресу…" oninput="renderList()" autocomplete="off">
+  </div>
+  <div id="pts-list"></div>
+</aside>
+
+<!-- Mobile FAB -->
+<button id="fab" onclick="openSidebar()" title="Список точек">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+    <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+    <circle cx="3" cy="6" r="1.5" fill="currentColor" stroke="none"/>
+    <circle cx="3" cy="12" r="1.5" fill="currentColor" stroke="none"/>
+    <circle cx="3" cy="18" r="1.5" fill="currentColor" stroke="none"/>
+  </svg>
+</button>
+<div id="sb-backdrop" onclick="closeSidebar()"></div>
+
 <!-- Modal -->
-<div id="overlay">
+<div id="overlay" onclick="overlayClick(event)">
   <div id="modal">
-    <div class="modal-hdr">
-      <h2 id="modal-title">Добавить точку</h2>
+    <div class="m-hdr">
+      <h2 id="m-title">Добавить точку</h2>
       <button class="btn-icon" onclick="closeModal()">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
 
-    <div class="form-group">
-      <label class="form-label">Название</label>
-      <input class="form-input" id="inp-name" type="text" placeholder="Например: Склад №1">
+    <div class="fg">
+      <label class="lbl">Название</label>
+      <input class="inp" id="i-name" type="text" placeholder="Объект №1">
     </div>
 
-    <div class="form-group">
-      <label class="form-label">Поиск по адресу</label>
+    <div class="fg">
+      <label class="lbl">Поиск по адресу</label>
       <div class="addr-wrap">
-        <input class="form-input" id="inp-addr" type="text" placeholder="Введите адрес…" autocomplete="off">
-        <div class="suggestions" id="sug"></div>
+        <input class="inp" id="i-addr" type="text" placeholder="Введите адрес…" autocomplete="off">
+        <div class="sugg" id="sugg"></div>
       </div>
     </div>
 
-    <div class="or-divider">или введите координаты вручную</div>
+    <div class="or-line">или координаты через запятую</div>
 
-    <div>
-      <label class="form-label">Широта, Долгота</label>
-      <input class="form-input" id="inp-coords" type="text" placeholder="55.751244, 37.618423" oninput="onManualCoords()" autocomplete="off">
-    </div>
-    <div class="coords-hint" id="coords-hint" style="margin-top:6px;margin-bottom:4px;"></div>
-
-    <div class="form-group" style="margin-top:16px;">
-      <label class="form-label">Цвет</label>
-      <div class="palette" id="palette"></div>
+    <div class="fg">
+      <label class="lbl">Широта, Долгота</label>
+      <input class="inp" id="i-coords" type="text" placeholder="55.751244, 37.618423" oninput="onCoords()" autocomplete="off">
+      <div class="coord-hint" id="c-hint"></div>
     </div>
 
-    <div class="modal-footer">
+    <div class="fg">
+      <label class="lbl">Цвет</label>
+      <div class="pal" id="pal"></div>
+    </div>
+
+    <div class="m-foot">
       <button class="btn btn-ghost" onclick="closeModal()">Отмена</button>
       <button class="btn btn-primary" onclick="savePoint()">Сохранить</button>
     </div>
   </div>
 </div>
 
-<!-- Mobile FAB + overlay -->
-<div id="mob-overlay" onclick="closeSidebar()"></div>
-<button id="mob-toggle" onclick="toggleSidebar()" title="Список точек">
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1.5" fill="currentColor" stroke="none"/><circle cx="3" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="3" cy="18" r="1.5" fill="currentColor" stroke="none"/></svg>
-</button>
-
 <!-- Confirm -->
-<div id="confirm-overlay">
-  <div id="confirm-box">
+<div id="conf-overlay" onclick="confOverlayClick(event)">
+  <div id="conf-box">
     <p>Удалить эту точку?</p>
-    <div class="cf-btns">
-      <button class="btn btn-ghost" onclick="closeConfirm()">Отмена</button>
-      <button class="btn-del" id="confirm-yes">Удалить</button>
+    <div class="conf-row">
+      <button class="btn btn-ghost" onclick="closeConf()">Отмена</button>
+      <button class="btn-del" id="conf-yes">Удалить</button>
     </div>
   </div>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const PALETTE = [
+// ── Constants ────────────────────────────────────────────
+const COLORS = [
   '#ef4444','#f97316','#f59e0b','#eab308','#84cc16','#22c55e',
   '#10b981','#14b8a6','#06b6d4','#3b82f6','#6366f1','#8b5cf6',
   '#a855f7','#ec4899','#f43f5e','#fb7185','#94a3b8','#64748b',
   '#0ea5e9','#d97706','#dc2626','#16a34a','#7c3aed','#db2777'
 ];
 
-let points = [];
-let layerMap = {};
-let editId = null;
-let pendingCoords = null;
-let selColor = PALETTE[0];
-let searchTimer = null;
-let prevMarker = null;
+// ── State ────────────────────────────────────────────────
+let pts = [], layers = {}, editId = null, pCoords = null, color = COLORS[0];
+let prevM = null, searchT = null;
 
-// Map
-const map = L.map('map').setView([55.75, 37.62], 11);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution:'© OpenStreetMap', maxZoom:19
+// ── Map ──────────────────────────────────────────────────
+const map = L.map('map', { zoomControl: false }).setView([55.75, 37.62], 11);
+L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© OpenStreetMap © CARTO',
+  subdomains: 'abcd', maxZoom: 20
 }).addTo(map);
 
-function mkIcon(color) {
+function mkIcon(c) {
   return L.divIcon({
-    className:'',
-    html:`<div style="width:14px;height:14px;border-radius:50%;background:${color};border:2.5px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.5);"></div>`,
-    iconSize:[14,14], iconAnchor:[7,7], popupAnchor:[0,-10]
+    className: '',
+    html: `<div style="width:14px;height:14px;border-radius:50%;background:${c};border:2.5px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.6)"></div>`,
+    iconSize: [14,14], iconAnchor: [7,7], popupAnchor: [0,-10]
   });
 }
 
-// Persist
-function persist() { localStorage.setItem('st11_points', JSON.stringify(points)); }
-function hydrate() {
-  const raw = localStorage.getItem('st11_points');
-  points = raw ? JSON.parse(raw) : defaultPoints();
+// ── Persist ──────────────────────────────────────────────
+function save() { try { localStorage.setItem('st11v2', JSON.stringify(pts)); } catch(e){} }
+function load() {
+  try {
+    const r = localStorage.getItem('st11v2');
+    pts = r ? JSON.parse(r) : getDefaults();
+  } catch(e) { pts = getDefaults(); }
 }
 
-// Render map
+// ── Render map ───────────────────────────────────────────
 function renderMap() {
-  Object.values(layerMap).forEach(m => map.removeLayer(m));
-  layerMap = {};
-  points.forEach(p => {
+  Object.values(layers).forEach(m => map.removeLayer(m));
+  layers = {};
+  pts.forEach(p => {
     if (p.on === false) return;
-    const m = L.marker(p.coords, { icon: mkIcon(p.color) })
+    layers[p.id] = L.marker(p.c, { icon: mkIcon(p.color) })
       .bindPopup(`<b style="color:${p.color}">${p.name}</b><br><span style="font-size:12px">${p.addr}</span>`)
       .addTo(map);
-    layerMap[p.id] = m;
   });
 }
 
-// Render sidebar
+// ── Render list ──────────────────────────────────────────
 function renderList() {
-  const q = document.getElementById('filter').value.toLowerCase();
-  const el = document.getElementById('points-list');
-  const filtered = q
-    ? points.filter(p => p.name.toLowerCase().includes(q) || p.addr.toLowerCase().includes(q))
-    : points;
+  const q = (document.getElementById('filter').value || '').toLowerCase();
+  const el = document.getElementById('pts-list');
+  const list = q ? pts.filter(p => p.name.toLowerCase().includes(q) || p.addr.toLowerCase().includes(q)) : pts;
 
-  if (!filtered.length) {
-    el.innerHTML = `<div class="empty-state">${q ? 'Ничего не найдено.' : 'Нет точек.<br>Нажмите «Добавить точку».'}</div>`;
+  if (!list.length) {
+    el.innerHTML = `<div class="empty">${q ? 'Ничего не найдено.' : 'Нет точек.<br>Нажмите «Добавить точку».'}</div>`;
     return;
   }
   el.innerHTML = '';
-  filtered.forEach(p => {
+  list.forEach(p => {
     const d = document.createElement('div');
-    d.className = 'point-card' + (p.on === false ? ' dimmed' : '');
+    d.className = 'pt-card' + (p.on === false ? ' off' : '');
     d.dataset.id = p.id;
+    const eyeIcon = p.on === false
+      ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M1 1l22 22"/></svg>`
+      : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
     d.innerHTML = `
-      <div class="point-color-col"><div class="pt-dot" style="background:${p.color}"></div></div>
-      <div class="point-info">
+      <div class="pt-dot" style="background:${p.color}"></div>
+      <div class="pt-body">
         <div class="pt-name">${p.name}</div>
         <div class="pt-addr">${p.addr}</div>
       </div>
-      <div class="point-actions">
-        <button class="btn-icon" onclick="toggleOne('${p.id}',event)" title="${p.on===false?'Показать':'Скрыть'}">
-          ${p.on === false
-            ? `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M1 1l22 22"/></svg>`
-            : `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`}
-        </button>
+      <div class="pt-acts">
+        <button class="btn-icon" onclick="toggleOne('${p.id}',event)" title="${p.on===false?'Показать':'Скрыть'}">${eyeIcon}</button>
         <button class="btn-icon" onclick="openEdit('${p.id}',event)" title="Редактировать">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         </button>
-        <button class="btn-icon danger" onclick="askDelete('${p.id}',event)" title="Удалить">
+        <button class="btn-icon red" onclick="askDel('${p.id}',event)" title="Удалить">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
         </button>
       </div>`;
-    d.addEventListener('click', () => zoomTo(p.id));
+    d.addEventListener('click', () => zoom(p.id));
     el.appendChild(d);
   });
 }
 
-function fullRender() { renderMap(); renderList(); updateStatus(); }
-function updateStatus() {
-  const vis = points.filter(p => p.on !== false).length;
-  document.getElementById('status').textContent = points.length + ' точек · ' + vis + ' видимых';
+function render() { renderMap(); renderList(); updStatus(); }
+function updStatus() {
+  const vis = pts.filter(p => p.on !== false).length;
+  document.getElementById('status-txt').textContent = `${pts.length} точек · ${vis} видно`;
 }
 
-// Zoom
-function zoomTo(id) {
-  const m = layerMap[id];
+// ── Zoom ─────────────────────────────────────────────────
+function zoom(id) {
+  const m = layers[id];
   if (!m) return;
   map.setView(m.getLatLng(), 16);
   m.openPopup();
-  document.querySelectorAll('.point-card').forEach(c => c.classList.remove('active'));
-  const card = document.querySelector(`.point-card[data-id="${id}"]`);
+  document.querySelectorAll('.pt-card').forEach(c => c.classList.remove('active'));
+  const card = document.querySelector(`.pt-card[data-id="${id}"]`);
   if (card) { card.classList.add('active'); card.scrollIntoView({ block:'nearest' }); }
   if (window.innerWidth <= 768) closeSidebar();
 }
 
-// Toggle
+// ── Toggle ────────────────────────────────────────────────
 function toggleOne(id, e) {
   e.stopPropagation();
-  const p = points.find(x => x.id === id);
-  p.on = p.on === false;
-  persist(); fullRender();
+  const p = pts.find(x => x.id === id);
+  p.on = (p.on === false);
+  save(); render();
 }
 function toggleAll() {
-  const anyOn = points.some(p => p.on !== false);
-  points.forEach(p => p.on = !anyOn);
-  persist(); fullRender();
+  const anyOn = pts.some(p => p.on !== false);
+  pts.forEach(p => p.on = !anyOn);
+  save(); render();
 }
 
-// Delete
-let pendingDelete = null;
-function askDelete(id, e) {
+// ── Delete ────────────────────────────────────────────────
+let delId = null;
+function askDel(id, e) {
   e.stopPropagation();
-  pendingDelete = id;
-  document.getElementById('confirm-overlay').classList.add('open');
+  delId = id;
+  document.getElementById('conf-overlay').classList.add('on');
 }
-function closeConfirm() { pendingDelete = null; document.getElementById('confirm-overlay').classList.remove('open'); }
-document.getElementById('confirm-yes').onclick = () => {
-  points = points.filter(p => p.id !== pendingDelete);
-  persist(); closeConfirm(); fullRender();
+function closeConf() { delId = null; document.getElementById('conf-overlay').classList.remove('on'); }
+function confOverlayClick(e) { if (e.target === document.getElementById('conf-overlay')) closeConf(); }
+document.getElementById('conf-yes').onclick = () => {
+  pts = pts.filter(p => p.id !== delId);
+  save(); closeConf(); render();
 };
 
-// Modal
-function buildPalette() {
-  const el = document.getElementById('palette');
+// ── Mobile sidebar ────────────────────────────────────────
+function openSidebar() {
+  document.getElementById('sidebar').classList.add('on');
+  document.getElementById('sb-backdrop').classList.add('on');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('on');
+  document.getElementById('sb-backdrop').classList.remove('on');
+}
+
+// Swipe down to close
+(function() {
+  const bar = document.getElementById('drag-bar');
+  let y0 = 0;
+  bar.addEventListener('touchstart', e => { y0 = e.touches[0].clientY; }, { passive: true });
+  bar.addEventListener('touchmove', e => {
+    if (e.touches[0].clientY - y0 > 50) closeSidebar();
+  }, { passive: true });
+})();
+
+// ── Modal ─────────────────────────────────────────────────
+function buildPal() {
+  const el = document.getElementById('pal');
   el.innerHTML = '';
-  PALETTE.forEach(c => {
+  COLORS.forEach(c => {
     const d = document.createElement('div');
-    d.className = 'pal-dot' + (c === selColor ? ' sel' : '');
+    d.className = 'pal-c' + (c === color ? ' sel' : '');
     d.style.background = c;
-    d.onclick = () => { selColor = c; buildPalette(); };
+    d.onclick = () => { color = c; buildPal(); };
     el.appendChild(d);
   });
-  // divider
-  const div = document.createElement('div');
-  div.className = 'pal-divider';
-  el.appendChild(div);
+  // separator
+  const sep = document.createElement('div');
+  sep.className = 'pal-sep';
+  el.appendChild(sep);
   // custom color picker
   const wrap = document.createElement('div');
-  wrap.className = 'color-picker-wrap';
+  wrap.className = 'pal-custom';
   wrap.title = 'Любой цвет';
   const inp = document.createElement('input');
-  inp.type = 'color';
-  inp.value = selColor;
-  inp.addEventListener('input', e => { selColor = e.target.value; buildPalette(); });
-  const btn = document.createElement('div');
-  btn.className = 'color-picker-btn';
-  btn.style.background = PALETTE.includes(selColor) ? 'transparent' : selColor;
-  btn.style.border = PALETTE.includes(selColor) ? '2.5px dashed #64748b' : '3px solid #fff';
-  btn.textContent = PALETTE.includes(selColor) ? '+' : '';
-  wrap.appendChild(inp);
-  wrap.appendChild(btn);
+  inp.type = 'color'; inp.value = color;
+  inp.oninput = e => { color = e.target.value; buildPal(); };
+  const face = document.createElement('div');
+  face.className = 'pal-custom-face';
+  face.style.background = COLORS.includes(color) ? '' : color;
+  face.style.border = COLORS.includes(color) ? '' : '3px solid #fff';
+  face.textContent = COLORS.includes(color) ? '+' : '';
+  wrap.appendChild(inp); wrap.appendChild(face);
   el.appendChild(wrap);
 }
 
+function setHint(c) {
+  const el = document.getElementById('c-hint');
+  if (c) { el.textContent = c[0].toFixed(6) + ', ' + c[1].toFixed(6); el.className = 'coord-hint ok'; }
+  else   { el.textContent = ''; el.className = 'coord-hint'; }
+}
+
+function setCField(c) {
+  document.getElementById('i-coords').value = c ? c[0] + ', ' + c[1] : '';
+}
+
 function clearPrev() {
-  if (prevMarker) { map.removeLayer(prevMarker); prevMarker = null; }
+  if (prevM) { map.removeLayer(prevM); prevM = null; }
 }
 
-function setHint(coords) {
-  const el = document.getElementById('coords-hint');
-  if (coords) { el.textContent = coords[0].toFixed(6) + ', ' + coords[1].toFixed(6); el.className = 'coords-hint ok'; }
-  else { el.textContent = ''; el.className = 'coords-hint'; }
+function openAdd() {
+  editId = null; pCoords = null;
+  color = COLORS[pts.length % COLORS.length];
+  document.getElementById('m-title').textContent = 'Добавить точку';
+  document.getElementById('i-name').value = '';
+  document.getElementById('i-addr').value = '';
+  setCField(null); setHint(null); clearPrev(); buildPal();
+  document.getElementById('overlay').classList.add('on');
 }
 
-function setLatLonFields(coords) {
-  document.getElementById('inp-coords').value = coords ? coords[0] + ', ' + coords[1] : '';
+function openEdit(id, e) {
+  e.stopPropagation();
+  const p = pts.find(x => x.id === id);
+  if (!p) return;
+  editId = id; pCoords = [...p.c]; color = p.color;
+  document.getElementById('m-title').textContent = 'Редактировать точку';
+  document.getElementById('i-name').value = p.name;
+  document.getElementById('i-addr').value = p.addr;
+  setCField(p.c); setHint(p.c); clearPrev(); buildPal();
+  document.getElementById('overlay').classList.add('on');
 }
 
-function onManualCoords() {
-  const raw = document.getElementById('inp-coords').value;
+function closeModal() {
+  document.getElementById('overlay').classList.remove('on');
+  document.getElementById('sugg').classList.remove('on');
+  clearPrev();
+}
+
+function overlayClick(e) {
+  if (e.target === document.getElementById('overlay')) closeModal();
+}
+
+// ── Address search ────────────────────────────────────────
+const addrInp = document.getElementById('i-addr');
+const sugg = document.getElementById('sugg');
+
+addrInp.addEventListener('input', () => {
+  clearTimeout(searchT);
+  const q = addrInp.value.trim();
+  if (q.length < 3) { sugg.classList.remove('on'); return; }
+  searchT = setTimeout(() => doSearch(q), 400);
+});
+addrInp.addEventListener('blur', () => setTimeout(() => sugg.classList.remove('on'), 200));
+
+async function doSearch(q) {
+  sugg.innerHTML = '<div class="sg" style="color:#475569">Поиск…</div>';
+  sugg.classList.add('on');
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q + ' Москва')}&format=json&limit=5&countrycodes=ru&accept-language=ru`;
+    const data = await (await fetch(url, { headers: { 'User-Agent': 'ST11/2.0' } })).json();
+    sugg.innerHTML = '';
+    if (!data.length) {
+      sugg.innerHTML = '<div class="sg" style="color:#475569">Ничего не найдено</div>';
+      return;
+    }
+    data.forEach(item => {
+      const parts = item.display_name.split(',');
+      const d = document.createElement('div');
+      d.className = 'sg';
+      d.innerHTML = `<b>${parts[0]}</b>${parts[1] ? ', ' + parts[1] : ''}`;
+      d.addEventListener('mousedown', () => pickAddr(item));
+      d.addEventListener('touchstart', () => pickAddr(item), { passive: true });
+      sugg.appendChild(d);
+    });
+  } catch {
+    sugg.innerHTML = '<div class="sg" style="color:#475569">Ошибка соединения</div>';
+  }
+}
+
+function pickAddr(item) {
+  const c = [parseFloat(item.lat), parseFloat(item.lon)];
+  pCoords = c;
+  addrInp.value = item.display_name.split(',').slice(0,2).join(',').trim();
+  sugg.classList.remove('on');
+  setCField(c); setHint(c);
+  clearPrev();
+  prevM = L.marker(c, { icon: mkIcon(color) }).addTo(map);
+  map.setView(c, 16);
+}
+
+// ── Manual coords ─────────────────────────────────────────
+function onCoords() {
+  const raw = document.getElementById('i-coords').value;
   const parts = raw.split(',').map(s => parseFloat(s.trim()));
   const [lat, lon] = parts;
-  if (parts.length >= 2 && !isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
-    pendingCoords = [lat, lon];
+  if (parts.length >= 2 && !isNaN(lat) && !isNaN(lon) && lat>=-90 && lat<=90 && lon>=-180 && lon<=180) {
+    pCoords = [lat, lon];
     setHint([lat, lon]);
     clearPrev();
-    prevMarker = L.marker([lat, lon], { icon: mkIcon(selColor) }).addTo(map);
+    prevM = L.marker([lat, lon], { icon: mkIcon(color) }).addTo(map);
     map.setView([lat, lon], map.getZoom() < 14 ? 14 : map.getZoom());
   } else {
     setHint(null);
   }
 }
 
-function openAdd() {
-  editId = null; pendingCoords = null;
-  selColor = PALETTE[points.length % PALETTE.length];
-  document.getElementById('modal-title').textContent = 'Добавить точку';
-  document.getElementById('inp-name').value = '';
-  document.getElementById('inp-addr').value = '';
-  setLatLonFields(null);
-  setHint(null); clearPrev(); buildPalette();
-  document.getElementById('overlay').classList.add('open');
-}
-
-function openEdit(id, e) {
-  e.stopPropagation();
-  const p = points.find(x => x.id === id);
-  if (!p) return;
-  editId = id; pendingCoords = [...p.coords]; selColor = p.color;
-  document.getElementById('modal-title').textContent = 'Редактировать точку';
-  document.getElementById('inp-name').value = p.name;
-  document.getElementById('inp-addr').value = p.addr;
-  setLatLonFields(p.coords);
-  setHint(p.coords); clearPrev(); buildPalette();
-  document.getElementById('overlay').classList.add('open');
-}
-
-function closeModal() {
-  document.getElementById('overlay').classList.remove('open');
-  document.getElementById('sug').classList.remove('open');
-  clearPrev();
-}
-
-document.getElementById('overlay').addEventListener('click', e => {
-  if (e.target === document.getElementById('overlay')) closeModal();
-});
-
-// Address search
-const addrInp = document.getElementById('inp-addr');
-const sugEl = document.getElementById('sug');
-
-addrInp.addEventListener('input', () => {
-  clearTimeout(searchTimer);
-  const q = addrInp.value.trim();
-  if (q.length < 3) { sugEl.classList.remove('open'); return; }
-  searchTimer = setTimeout(() => doSearch(q), 380);
-});
-addrInp.addEventListener('blur', () => setTimeout(() => sugEl.classList.remove('open'), 200));
-
-async function doSearch(q) {
-  sugEl.innerHTML = '<div class="sug-item" style="color:#475569">Поиск…</div>';
-  sugEl.classList.add('open');
-  try {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q + ' Москва')}&format=json&limit=6&countrycodes=ru&accept-language=ru`;
-    const data = await (await fetch(url, { headers:{'User-Agent':'ST11/1.0'} })).json();
-    sugEl.innerHTML = '';
-    if (!data.length) { sugEl.innerHTML = '<div class="sug-item" style="color:#475569">Ничего не найдено</div>'; return; }
-    data.forEach(item => {
-      const parts = item.display_name.split(',');
-      const d = document.createElement('div');
-      d.className = 'sug-item';
-      d.innerHTML = `<b>${parts[0]}</b>${parts.slice(1,3).join(',') ? ', '+parts.slice(1,3).join(',') : ''}`;
-      d.addEventListener('mousedown', () => pickAddr(item));
-      sugEl.appendChild(d);
-    });
-  } catch {
-    sugEl.innerHTML = '<div class="sug-item" style="color:#475569">Ошибка соединения</div>';
-  }
-}
-
-function pickAddr(item) {
-  pendingCoords = [parseFloat(item.lat), parseFloat(item.lon)];
-  const label = item.display_name.split(',').slice(0,2).join(',').trim();
-  addrInp.value = label;
-  sugEl.classList.remove('open');
-  setHint(pendingCoords);
-  setLatLonFields(pendingCoords);
-  clearPrev();
-  prevMarker = L.marker(pendingCoords, { icon: mkIcon(selColor) }).addTo(map);
-  map.setView(pendingCoords, 16);
-}
-
-// Save
+// ── Save ──────────────────────────────────────────────────
 function savePoint() {
-  const name = document.getElementById('inp-name').value.trim();
-  const addr = document.getElementById('inp-addr').value.trim();
+  const name = document.getElementById('i-name').value.trim();
+  const addr = document.getElementById('i-addr').value.trim() ||
+               (pCoords ? pCoords[0].toFixed(5) + ', ' + pCoords[1].toFixed(5) : '');
   if (!name) { alert('Введите название точки.'); return; }
-  if (!pendingCoords) { alert('Выберите адрес из подсказок.'); return; }
+  if (!pCoords) { alert('Укажите адрес или координаты.'); return; }
   if (editId) {
-    const p = points.find(x => x.id === editId);
-    Object.assign(p, { name, addr, color: selColor, coords: pendingCoords });
+    Object.assign(pts.find(x => x.id === editId), { name, addr, color, c: pCoords });
   } else {
-    points.push({ id: Date.now()+'', name, addr, color: selColor, coords: pendingCoords, on: true });
+    pts.push({ id: Date.now()+'', name, addr, color, c: pCoords, on: true });
   }
-  persist(); closeModal(); fullRender();
+  save(); closeModal(); render();
 }
 
-// Default data (24 individual points from original pairs)
-function defaultPoints() {
+// ── Defaults ──────────────────────────────────────────────
+function getDefaults() {
   return [
-    { id:'1',  name:'Электрозаводская, 24',          addr:'Электрозаводская, 24',          color:'#e94560', on:true, coords:[55.7889129,37.7076559] },
-    { id:'2',  name:'Малая Семёновская, 3а',          addr:'Малая Семёновская, 3а',          color:'#e94560', on:true, coords:[55.7856520,37.7061786] },
-    { id:'3',  name:'Шверника, 4с2',                  addr:'Шверника, 4с2',                  color:'#00b4d8', on:true, coords:[55.6928406,37.5801545] },
-    { id:'4',  name:'пр-т 60-летия Октября, 14',      addr:'пр-т 60-летия Октября, 14',      color:'#00b4d8', on:true, coords:[55.6914863,37.5748646] },
-    { id:'5',  name:'Академика Скрябина, 9К2 Стр3',   addr:'Академика Скрябина, 9К2 Стр3',   color:'#06d6a0', on:true, coords:[55.7115674,37.7985520] },
-    { id:'6',  name:'Рязанский пр-т, 76/2',           addr:'Рязанский пр-т, 76/2',           color:'#06d6a0', on:true, coords:[55.7110577,37.8165213] },
-    { id:'7',  name:'2-я Звенигородская, 13с41',      addr:'2-я Звенигородская, 13с41',      color:'#ffd166', on:true, coords:[55.7624959,37.5519418] },
-    { id:'8',  name:'Мантулинская, 2',                addr:'Мантулинская, 2',                color:'#ffd166', on:true, coords:[55.7568092,37.5573652] },
-    { id:'9',  name:'Маршала Тухачевского, 51',       addr:'Маршала Тухачевского, 51',       color:'#f77f00', on:true, coords:[55.7842906,37.4601883] },
-    { id:'10', name:'Маршала Тухачевского, 18',       addr:'Маршала Тухачевского, 18',       color:'#f77f00', on:true, coords:[55.7831123,37.4836506] },
-    { id:'11', name:'2-я Филёвская, 6к5',             addr:'2-я Филёвская, 6к5',             color:'#c77dff', on:true, coords:[55.7358624,37.4942778] },
-    { id:'12', name:'Барклая, 6к6с1',                 addr:'Барклая, 6к6с1',                 color:'#c77dff', on:true, coords:[55.7391664,37.5082154] },
-    { id:'13', name:'Сокольнический Вал, 24к2',       addr:'Сокольнический Вал, 24к2',       color:'#ef233c', on:true, coords:[55.7913251,37.6636954] },
-    { id:'14', name:'Жебрунова, 6с24',                addr:'Жебрунова, 6с24',                color:'#ef233c', on:true, coords:[55.7843515,37.6820933] },
-    { id:'15', name:'Белоречанская, 13к3',            addr:'Белоречанская, 13к3',            color:'#48cae4', on:true, coords:[55.673189, 37.766441 ] },
-    { id:'16', name:'ЮВАО Люблино',                   addr:'ЮВАО Люблино',                   color:'#48cae4', on:true, coords:[55.677325, 37.755227 ] },
-    { id:'17', name:'Николо-Хованская, 28с5',         addr:'Николо-Хованская, 28с5',         color:'#80b918', on:true, coords:[55.589310, 37.454034 ] },
-    { id:'18', name:'Николо-Хованское, опора д21/22', addr:'Николо-Хованское, опора д21/22', color:'#80b918', on:true, coords:[55.592764, 37.450055 ] },
-    { id:'19', name:'Электролитный пр., 5Б',          addr:'Электролитный пр., 5Б',          color:'#ff9f1c', on:true, coords:[55.6704183,37.6131569] },
-    { id:'20', name:'Электролитный пр., у д.3к1с2',  addr:'Электролитный пр., у д.3к1с2',  color:'#ff9f1c', on:true, coords:[55.6745596,37.6156203] },
-    { id:'21', name:'Новинский б-р, 18с1',            addr:'Новинский б-р, 18с1',            color:'#ff6b9d', on:true, coords:[55.7549700,37.5846208] },
-    { id:'22', name:'Поварская, 38с1',                addr:'Поварская, 38с1',                color:'#ff6b9d', on:true, coords:[55.7561754,37.5907499] },
-    { id:'23', name:'р-н Левобережный',               addr:'р-н Левобережный',               color:'#a0c4ff', on:true, coords:[55.8650743,37.4691831] },
-    { id:'24', name:'Беломорская, 36',                addr:'Беломорская, 36',                color:'#a0c4ff', on:true, coords:[55.8665331,37.4804536] }
+    { id:'1',  name:'Электрозаводская, 24',          addr:'Электрозаводская, 24',          color:'#e94560', on:true, c:[55.7889129,37.7076559] },
+    { id:'2',  name:'Малая Семёновская, 3а',          addr:'Малая Семёновская, 3а',          color:'#e94560', on:true, c:[55.7856520,37.7061786] },
+    { id:'3',  name:'Шверника, 4с2',                  addr:'Шверника, 4с2',                  color:'#00b4d8', on:true, c:[55.6928406,37.5801545] },
+    { id:'4',  name:'пр-т 60-летия Октября, 14',      addr:'пр-т 60-летия Октября, 14',      color:'#00b4d8', on:true, c:[55.6914863,37.5748646] },
+    { id:'5',  name:'Академика Скрябина, 9К2 Стр3',   addr:'Академика Скрябина, 9К2 Стр3',   color:'#06d6a0', on:true, c:[55.7115674,37.7985520] },
+    { id:'6',  name:'Рязанский пр-т, 76/2',           addr:'Рязанский пр-т, 76/2',           color:'#06d6a0', on:true, c:[55.7110577,37.8165213] },
+    { id:'7',  name:'2-я Звенигородская, 13с41',      addr:'2-я Звенигородская, 13с41',      color:'#ffd166', on:true, c:[55.7624959,37.5519418] },
+    { id:'8',  name:'Мантулинская, 2',                addr:'Мантулинская, 2',                color:'#ffd166', on:true, c:[55.7568092,37.5573652] },
+    { id:'9',  name:'Маршала Тухачевского, 51',       addr:'Маршала Тухачевского, 51',       color:'#f77f00', on:true, c:[55.7842906,37.4601883] },
+    { id:'10', name:'Маршала Тухачевского, 18',       addr:'Маршала Тухачевского, 18',       color:'#f77f00', on:true, c:[55.7831123,37.4836506] },
+    { id:'11', name:'2-я Филёвская, 6к5',             addr:'2-я Филёвская, 6к5',             color:'#c77dff', on:true, c:[55.7358624,37.4942778] },
+    { id:'12', name:'Барклая, 6к6с1',                 addr:'Барклая, 6к6с1',                 color:'#c77dff', on:true, c:[55.7391664,37.5082154] },
+    { id:'13', name:'Сокольнический Вал, 24к2',       addr:'Сокольнический Вал, 24к2',       color:'#ef233c', on:true, c:[55.7913251,37.6636954] },
+    { id:'14', name:'Жебрунова, 6с24',                addr:'Жебрунова, 6с24',                color:'#ef233c', on:true, c:[55.7843515,37.6820933] },
+    { id:'15', name:'Белоречанская, 13к3',            addr:'Белоречанская, 13к3',            color:'#48cae4', on:true, c:[55.673189, 37.766441 ] },
+    { id:'16', name:'ЮВАО Люблино',                   addr:'ЮВАО Люблино',                   color:'#48cae4', on:true, c:[55.677325, 37.755227 ] },
+    { id:'17', name:'Николо-Хованская, 28с5',         addr:'Николо-Хованская, 28с5',         color:'#80b918', on:true, c:[55.589310, 37.454034 ] },
+    { id:'18', name:'Николо-Хованское, опора д21/22', addr:'Николо-Хованское, опора д21/22', color:'#80b918', on:true, c:[55.592764, 37.450055 ] },
+    { id:'19', name:'Электролитный пр., 5Б',          addr:'Электролитный пр., 5Б',          color:'#ff9f1c', on:true, c:[55.6704183,37.6131569] },
+    { id:'20', name:'Электролитный пр., у д.3к1с2',  addr:'Электролитный пр., у д.3к1с2',  color:'#ff9f1c', on:true, c:[55.6745596,37.6156203] },
+    { id:'21', name:'Новинский б-р, 18с1',            addr:'Новинский б-р, 18с1',            color:'#ff6b9d', on:true, c:[55.7549700,37.5846208] },
+    { id:'22', name:'Поварская, 38с1',                addr:'Поварская, 38с1',                color:'#ff6b9d', on:true, c:[55.7561754,37.5907499] },
+    { id:'23', name:'р-н Левобережный',               addr:'р-н Левобережный',               color:'#a0c4ff', on:true, c:[55.8650743,37.4691831] },
+    { id:'24', name:'Беломорская, 36',                addr:'Беломорская, 36',                color:'#a0c4ff', on:true, c:[55.8665331,37.4804536] }
   ];
 }
 
-// ── Mobile sidebar ───────────────────────────────────────
-function toggleSidebar() {
-  const sb = document.getElementById('sidebar');
-  sb.classList.contains('open') ? closeSidebar() : openSidebar();
-}
-function openSidebar() {
-  document.getElementById('sidebar').classList.add('open');
-  document.getElementById('mob-overlay').classList.add('open');
-}
-function closeSidebar() {
-  document.getElementById('sidebar').classList.remove('open');
-  document.getElementById('mob-overlay').classList.remove('open');
-}
-
-// Swipe down to close
-(function() {
-  const sb = document.getElementById('sidebar');
-  const handle = document.getElementById('drag-handle');
-  let startY = 0, dragging = false;
-  function onStart(e) {
-    startY = (e.touches ? e.touches[0].clientY : e.clientY);
-    dragging = true;
-  }
-  function onMove(e) {
-    if (!dragging) return;
-    const dy = (e.touches ? e.touches[0].clientY : e.clientY) - startY;
-    if (dy > 60) { closeSidebar(); dragging = false; }
-  }
-  function onEnd() { dragging = false; }
-  handle.addEventListener('touchstart', onStart, { passive:true });
-  handle.addEventListener('touchmove', onMove, { passive:true });
-  handle.addEventListener('touchend', onEnd);
-})();
-
-hydrate();
-fullRender();
+load();
+render();
 </script>
 </body>
 </html>
