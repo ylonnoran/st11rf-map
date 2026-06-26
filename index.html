@@ -416,7 +416,22 @@ function save() { try { localStorage.setItem('st11v2', JSON.stringify(pts)); } c
 function load() {
   try {
     const r = localStorage.getItem('st11v2');
-    pts = r ? JSON.parse(r) : getDefaults();
+    if (r) { pts = JSON.parse(r); return; }
+    // migrate from previous key
+    const old = localStorage.getItem('st11_points');
+    if (old) {
+      const parsed = JSON.parse(old);
+      // old format used .coords, new uses .c
+      pts = parsed.map(p => ({
+        ...p,
+        c: p.c || p.coords,
+        addr: p.addr || (p.a ? p.a.addr : ''),
+        name: p.name || (p.a ? p.a.addr : 'Точка')
+      }));
+      save(); // write to new key
+      return;
+    }
+    pts = getDefaults();
   } catch(e) { pts = getDefaults(); }
 }
 
