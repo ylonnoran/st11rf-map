@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Строительный Трест 11</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <style>
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
 
@@ -382,6 +384,16 @@ html, body {
 
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+// ── Firebase config (заполни после создания проекта) ────
+const FB = {
+  apiKey:            "",
+  authDomain:        "",
+  projectId:         "",
+  storageBucket:     "",
+  messagingSenderId: "",
+  appId:             ""
+};
+
 // ── Constants ────────────────────────────────────────────
 const COLORS = [
   '#ef4444','#f97316','#f59e0b','#eab308','#84cc16','#22c55e',
@@ -391,6 +403,7 @@ const COLORS = [
 ];
 
 // ── State ────────────────────────────────────────────────
+let db = null;
 let pts = [], layers = {}, editId = null, pCoords = null, color = COLORS[0];
 let prevM = null, searchT = null;
 
@@ -411,28 +424,51 @@ function mkIcon(c) {
   });
 }
 
-// ── Persist ──────────────────────────────────────────────
-function save() { try { localStorage.setItem('st11v2', JSON.stringify(pts)); } catch(e){} }
-function load() {
+// ── Persist (local) ──────────────────────────────────────
+function saveLocal() { try { localStorage.setItem('st11v2', JSON.stringify(pts)); } catch(e){} }
+function loadLocal() {
   try {
     const r = localStorage.getItem('st11v2');
     if (r) { pts = JSON.parse(r); return; }
-    // migrate from previous key
     const old = localStorage.getItem('st11_points');
     if (old) {
       const parsed = JSON.parse(old);
-      // old format used .coords, new uses .c
       pts = parsed.map(p => ({
-        ...p,
-        c: p.c || p.coords,
-        addr: p.addr || (p.a ? p.a.addr : ''),
-        name: p.name || (p.a ? p.a.addr : 'Точка')
+        ...p, c: p.c || p.coords,
+        addr: p.addr || '', name: p.name || 'Точка'
       }));
-      save(); // write to new key
-      return;
+      saveLocal(); return;
     }
     pts = getDefaults();
   } catch(e) { pts = getDefaults(); }
+}
+
+// ── Persist (Firestore) ───────────────────────────────────
+async function fsSet(p) {
+  if (db) await db.collection('points').doc(p.id).set(p);
+}
+async function fsDel(id) {
+  if (db) await db.collection('points').doc(id).delete();
+}
+async function fsUpdate(id, data) {
+  if (db) await db.collection('points').doc(id).update(data);
+}
+
+async function migrateIfEmpty() {
+  const snap = await db.collection('points').limit(1).get();
+  if (!snap.empty) return;
+  let src = [];
+  try {
+    const r = localStorage.getItem('st11v2') || localStorage.getItem('st11_points');
+    if (r) src = JSON.parse(r);
+  } catch(e) {}
+  if (!src.length) src = getDefaults();
+  const batch = db.batch();
+  src.forEach(p => {
+    p.c = p.c || p.coords || [55.75, 37.62];
+    batch.set(db.collection('points').doc(p.id), p);
+  });
+  await batch.commit();
 }
 
 // ── Render map ───────────────────────────────────────────
@@ -508,12 +544,16 @@ function toggleOne(id, e) {
   e.stopPropagation();
   const p = pts.find(x => x.id === id);
   p.on = (p.on === false);
-  save(); render();
+  if (db) fsUpdate(id, { on: p.on }); else { saveLocal(); render(); }
 }
 function toggleAll() {
   const anyOn = pts.some(p => p.on !== false);
   pts.forEach(p => p.on = !anyOn);
-  save(); render();
+  if (db) {
+    const batch = db.batch();
+    pts.forEach(p => batch.update(db.collection('points').doc(p.id), { on: p.on }));
+    batch.commit();
+  } else { saveLocal(); render(); }
 }
 
 // ── Delete ────────────────────────────────────────────────
@@ -526,8 +566,9 @@ function askDel(id, e) {
 function closeConf() { delId = null; document.getElementById('conf-overlay').classList.remove('on'); }
 function confOverlayClick(e) { if (e.target === document.getElementById('conf-overlay')) closeConf(); }
 document.getElementById('conf-yes').onclick = () => {
-  pts = pts.filter(p => p.id !== delId);
-  save(); closeConf(); render();
+  if (db) { fsDel(delId); }
+  else { pts = pts.filter(p => p.id !== delId); saveLocal(); render(); }
+  closeConf();
 };
 
 // ── Mobile sidebar ────────────────────────────────────────
@@ -698,12 +739,17 @@ function savePoint() {
                (pCoords ? pCoords[0].toFixed(5) + ', ' + pCoords[1].toFixed(5) : '');
   if (!name) { alert('Введите название точки.'); return; }
   if (!pCoords) { alert('Укажите адрес или координаты.'); return; }
-  if (editId) {
-    Object.assign(pts.find(x => x.id === editId), { name, addr, color, c: pCoords });
+  const p = editId
+    ? { ...pts.find(x => x.id === editId), name, addr, color, c: pCoords }
+    : { id: Date.now()+'', name, addr, color, c: pCoords, on: true };
+  if (db) {
+    fsSet(p);
   } else {
-    pts.push({ id: Date.now()+'', name, addr, color, c: pCoords, on: true });
+    if (editId) { const i = pts.findIndex(x => x.id === editId); pts[i] = p; }
+    else pts.push(p);
+    saveLocal(); render();
   }
-  save(); closeModal(); render();
+  closeModal();
 }
 
 // ── Defaults ──────────────────────────────────────────────
@@ -736,8 +782,21 @@ function getDefaults() {
   ];
 }
 
-load();
-render();
+// ── Boot ─────────────────────────────────────────────────
+if (FB.apiKey && FB.projectId) {
+  firebase.initializeApp(FB);
+  db = firebase.firestore();
+  db.collection('points').onSnapshot(snap => {
+    pts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    render();
+  }, err => {
+    console.error('Firestore:', err);
+    db = null; loadLocal(); render();
+  });
+  migrateIfEmpty();
+} else {
+  loadLocal(); render();
+}
 </script>
 </body>
 </html>
