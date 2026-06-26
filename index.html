@@ -9,16 +9,16 @@
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
 
 :root {
-  --bg:       #f1f5f9;
+  --bg:       #e8ecf0;
   --surf:     #ffffff;
-  --surf2:    #f8fafc;
-  --surf3:    #e2e8f0;
-  --border:   #e2e8f0;
-  --txt:      #1e293b;
-  --dim:      #64748b;
-  --accent:   #3b82f6;
-  --accentH:  #2563eb;
-  --danger:   #ef4444;
+  --surf2:    #f2f4f7;
+  --surf3:    #dde2e8;
+  --border:   #d0d7df;
+  --txt:      #1a2332;
+  --dim:      #5a6a7e;
+  --accent:   #2563eb;
+  --accentH:  #1d4ed8;
+  --danger:   #dc2626;
   --ok:       #16a34a;
   --hdr:      48px;
 }
@@ -398,9 +398,9 @@ let prevM = null, searchT = null;
 const map = L.map('map', { zoomControl: false }).setView([55.75, 37.62], 11);
 L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-  attribution: '© OpenStreetMap © CARTO',
-  subdomains: 'abcd', maxZoom: 20
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap',
+  maxZoom: 20
 }).addTo(map);
 
 function mkIcon(c) {
