@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Строительный Трест 11</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://api-maps.yandex.ru/2.1/?apikey=c5cc456c-23ca-4443-a345-1c1453673b93&lang=ru_RU" type="text/javascript"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <style>
@@ -64,7 +64,6 @@ html, body {
   display: flex; flex-direction: column;
   z-index: 1000;
 }
-/* push map right on desktop */
 @media (min-width: 769px) {
   #map { left: 300px; }
 }
@@ -382,9 +381,8 @@ html, body {
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-// ── Firebase config (заполни после создания проекта) ────
+// ── Firebase config ──────────────────────────────────────
 const FB = {
   apiKey:            "",
   authDomain:        "",
@@ -403,26 +401,9 @@ const COLORS = [
 ];
 
 // ── State ────────────────────────────────────────────────
-let db = null;
+let db = null, map = null;
 let pts = [], layers = {}, editId = null, pCoords = null, color = COLORS[0];
 let prevM = null, searchT = null;
-
-// ── Map ──────────────────────────────────────────────────
-const map = L.map('map', { zoomControl: false }).setView([55.75, 37.62], 11);
-L.control.zoom({ position: 'bottomright' }).addTo(map);
-
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '© OpenStreetMap',
-  maxZoom: 20
-}).addTo(map);
-
-function mkIcon(c) {
-  return L.divIcon({
-    className: '',
-    html: `<div style="width:14px;height:14px;border-radius:50%;background:${c};border:2.5px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.35)"></div>`,
-    iconSize: [14,14], iconAnchor: [7,7], popupAnchor: [0,-10]
-  });
-}
 
 // ── Persist (local) ──────────────────────────────────────
 function saveLocal() { try { localStorage.setItem('st11v2', JSON.stringify(pts)); } catch(e){} }
@@ -444,15 +425,9 @@ function loadLocal() {
 }
 
 // ── Persist (Firestore) ───────────────────────────────────
-async function fsSet(p) {
-  if (db) await db.collection('points').doc(p.id).set(p);
-}
-async function fsDel(id) {
-  if (db) await db.collection('points').doc(id).delete();
-}
-async function fsUpdate(id, data) {
-  if (db) await db.collection('points').doc(id).update(data);
-}
+async function fsSet(p) { if (db) await db.collection('points').doc(p.id).set(p); }
+async function fsDel(id) { if (db) await db.collection('points').doc(id).delete(); }
+async function fsUpdate(id, data) { if (db) await db.collection('points').doc(id).update(data); }
 
 async function migrateIfEmpty() {
   const snap = await db.collection('points').limit(1).get();
@@ -473,13 +448,18 @@ async function migrateIfEmpty() {
 
 // ── Render map ───────────────────────────────────────────
 function renderMap() {
-  Object.values(layers).forEach(m => map.removeLayer(m));
+  Object.values(layers).forEach(pm => map.geoObjects.remove(pm));
   layers = {};
   pts.forEach(p => {
     if (p.on === false) return;
-    layers[p.id] = L.marker(p.c, { icon: mkIcon(p.color) })
-      .bindPopup(`<b style="color:${p.color}">${p.name}</b><br><span style="font-size:12px">${p.addr}</span>`)
-      .addTo(map);
+    const pm = new ymaps.Placemark(p.c, {
+      balloonContent: `<b style="color:${p.color}">${p.name}</b><br><span style="font-size:12px">${p.addr}</span>`
+    }, {
+      preset: 'islands#circleDotIcon',
+      iconColor: p.color
+    });
+    map.geoObjects.add(pm);
+    layers[p.id] = pm;
   });
 }
 
@@ -529,10 +509,11 @@ function updStatus() {
 
 // ── Zoom ─────────────────────────────────────────────────
 function zoom(id) {
-  const m = layers[id];
-  if (!m) return;
-  map.setView(m.getLatLng(), 16);
-  m.openPopup();
+  const pm = layers[id];
+  if (!pm) return;
+  const coords = pm.geometry.getCoordinates();
+  map.setCenter(coords, 16);
+  pm.balloon.open();
   document.querySelectorAll('.pt-card').forEach(c => c.classList.remove('active'));
   const card = document.querySelector(`.pt-card[data-id="${id}"]`);
   if (card) { card.classList.add('active'); card.scrollIntoView({ block:'nearest' }); }
@@ -581,7 +562,6 @@ function closeSidebar() {
   document.getElementById('sb-backdrop').classList.remove('on');
 }
 
-// Swipe down to close
 (function() {
   const bar = document.getElementById('drag-bar');
   let y0 = 0;
@@ -602,11 +582,9 @@ function buildPal() {
     d.onclick = () => { color = c; buildPal(); };
     el.appendChild(d);
   });
-  // separator
   const sep = document.createElement('div');
   sep.className = 'pal-sep';
   el.appendChild(sep);
-  // custom color picker
   const wrap = document.createElement('div');
   wrap.className = 'pal-custom';
   wrap.title = 'Любой цвет';
@@ -633,7 +611,7 @@ function setCField(c) {
 }
 
 function clearPrev() {
-  if (prevM) { map.removeLayer(prevM); prevM = null; }
+  if (prevM && map) { map.geoObjects.remove(prevM); prevM = null; }
 }
 
 function openAdd() {
@@ -668,7 +646,7 @@ function overlayClick(e) {
   if (e.target === document.getElementById('overlay')) closeModal();
 }
 
-// ── Address search ────────────────────────────────────────
+// ── Address search (Яндекс геокодер) ─────────────────────
 const addrInp = document.getElementById('i-addr');
 const sugg = document.getElementById('sugg');
 
@@ -684,36 +662,38 @@ async function doSearch(q) {
   sugg.innerHTML = '<div class="sg" style="color:#475569">Поиск…</div>';
   sugg.classList.add('on');
   try {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q + ' Москва')}&format=json&limit=5&countrycodes=ru&accept-language=ru`;
-    const data = await (await fetch(url, { headers: { 'User-Agent': 'ST11/2.0' } })).json();
+    const result = await ymaps.geocode('Москва, ' + q, { results: 5 });
+    const items = result.geoObjects.toArray();
     sugg.innerHTML = '';
-    if (!data.length) {
+    if (!items.length) {
       sugg.innerHTML = '<div class="sg" style="color:#475569">Ничего не найдено</div>';
       return;
     }
-    data.forEach(item => {
-      const parts = item.display_name.split(',');
+    items.forEach(item => {
+      const fullAddr = item.getAddressLine();
+      const coords = item.geometry.getCoordinates();
       const d = document.createElement('div');
       d.className = 'sg';
+      const parts = fullAddr.split(',');
       d.innerHTML = `<b>${parts[0]}</b>${parts[1] ? ', ' + parts[1] : ''}`;
-      d.addEventListener('mousedown', () => pickAddr(item));
-      d.addEventListener('touchstart', () => pickAddr(item), { passive: true });
+      d.addEventListener('mousedown', () => pickAddr(fullAddr, coords));
+      d.addEventListener('touchstart', () => pickAddr(fullAddr, coords), { passive: true });
       sugg.appendChild(d);
     });
-  } catch {
+  } catch(e) {
     sugg.innerHTML = '<div class="sg" style="color:#475569">Ошибка соединения</div>';
   }
 }
 
-function pickAddr(item) {
-  const c = [parseFloat(item.lat), parseFloat(item.lon)];
+function pickAddr(fullAddr, c) {
   pCoords = c;
-  addrInp.value = item.display_name.split(',').slice(0,2).join(',').trim();
+  addrInp.value = fullAddr.split(',').slice(0, 2).join(',').trim();
   sugg.classList.remove('on');
   setCField(c); setHint(c);
   clearPrev();
-  prevM = L.marker(c, { icon: mkIcon(color) }).addTo(map);
-  map.setView(c, 16);
+  prevM = new ymaps.Placemark(c, {}, { preset: 'islands#circleDotIcon', iconColor: color });
+  map.geoObjects.add(prevM);
+  map.setCenter(c, 16);
 }
 
 // ── Manual coords ─────────────────────────────────────────
@@ -725,8 +705,10 @@ function onCoords() {
     pCoords = [lat, lon];
     setHint([lat, lon]);
     clearPrev();
-    prevM = L.marker([lat, lon], { icon: mkIcon(color) }).addTo(map);
-    map.setView([lat, lon], map.getZoom() < 14 ? 14 : map.getZoom());
+    prevM = new ymaps.Placemark([lat, lon], {}, { preset: 'islands#circleDotIcon', iconColor: color });
+    map.geoObjects.add(prevM);
+    const z = map.getZoom() < 14 ? 14 : map.getZoom();
+    map.setCenter([lat, lon], z);
   } else {
     setHint(null);
   }
@@ -783,20 +765,32 @@ function getDefaults() {
 }
 
 // ── Boot ─────────────────────────────────────────────────
-if (FB.apiKey && FB.projectId) {
-  firebase.initializeApp(FB);
-  db = firebase.firestore();
-  db.collection('points').onSnapshot(snap => {
-    pts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    render();
-  }, err => {
-    console.error('Firestore:', err);
-    db = null; loadLocal(); render();
+ymaps.ready(() => {
+  map = new ymaps.Map('map', {
+    center: [55.75, 37.62],
+    zoom: 11,
+    controls: []
   });
-  migrateIfEmpty();
-} else {
-  loadLocal(); render();
-}
+
+  map.controls.add(new ymaps.control.ZoomControl({
+    options: { position: { right: 10, bottom: 80 } }
+  }));
+
+  if (FB.apiKey && FB.projectId) {
+    firebase.initializeApp(FB);
+    db = firebase.firestore();
+    db.collection('points').onSnapshot(snap => {
+      pts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      render();
+    }, err => {
+      console.error('Firestore:', err);
+      db = null; loadLocal(); render();
+    });
+    migrateIfEmpty();
+  } else {
+    loadLocal(); render();
+  }
+});
 </script>
 </body>
 </html>
