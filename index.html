@@ -662,16 +662,18 @@ async function doSearch(q) {
   sugg.innerHTML = '<div class="sg" style="color:#475569">Поиск…</div>';
   sugg.classList.add('on');
   try {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q + ' Москва')}&format=json&limit=5&countrycodes=ru&accept-language=ru`;
-    const data = await (await fetch(url, { headers: { 'User-Agent': 'ST11/2.0' } })).json();
+    const url = `https://geocode-maps.yandex.ru/1.x/?apikey=741f481e-e908-4ffa-9b4e-e63d6cdb6627&geocode=${encodeURIComponent('Москва, ' + q)}&format=json&lang=ru_RU&results=5`;
+    const data = await (await fetch(url)).json();
+    const members = data.response.GeoObjectCollection.featureMember;
     sugg.innerHTML = '';
-    if (!data.length) {
+    if (!members.length) {
       sugg.innerHTML = '<div class="sg" style="color:#475569">Ничего не найдено</div>';
       return;
     }
-    data.forEach(item => {
-      const label = item.display_name;
-      const coords = [parseFloat(item.lat), parseFloat(item.lon)];
+    members.forEach(({ GeoObject: g }) => {
+      const label = g.metaDataProperty.GeocoderMetaData.text;
+      const pos = g.Point.pos.split(' ');
+      const coords = [parseFloat(pos[1]), parseFloat(pos[0])];
       const d = document.createElement('div');
       d.className = 'sg';
       const parts = label.split(',');
