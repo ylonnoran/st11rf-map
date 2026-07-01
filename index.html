@@ -662,22 +662,24 @@ async function doSearch(q) {
   sugg.innerHTML = '<div class="sg" style="color:#475569">Поиск…</div>';
   sugg.classList.add('on');
   try {
-    const result = await ymaps.geocode('Москва, ' + q, { results: 5 });
-    const items = result.geoObjects.toArray();
+    const url = `https://geocode-maps.yandex.ru/1.x/?apikey=741f481e-e908-4ffa-9b4e-e63d6cdb6627&geocode=${encodeURIComponent('Москва, ' + q)}&format=json&lang=ru_RU&results=5`;
+    const data = await (await fetch(url)).json();
+    const members = data.response.GeoObjectCollection.featureMember;
     sugg.innerHTML = '';
-    if (!items.length) {
+    if (!members.length) {
       sugg.innerHTML = '<div class="sg" style="color:#475569">Ничего не найдено</div>';
       return;
     }
-    items.forEach(item => {
-      const fullAddr = item.getAddressLine();
-      const coords = item.geometry.getCoordinates();
+    members.forEach(({ GeoObject: g }) => {
+      const label = g.metaDataProperty.GeocoderMetaData.text;
+      const pos = g.Point.pos.split(' ');
+      const coords = [parseFloat(pos[1]), parseFloat(pos[0])]; // lon lat → lat lon
       const d = document.createElement('div');
       d.className = 'sg';
-      const parts = fullAddr.split(',');
+      const parts = label.split(',');
       d.innerHTML = `<b>${parts[0]}</b>${parts[1] ? ', ' + parts[1] : ''}`;
-      d.addEventListener('mousedown', () => pickAddr(fullAddr, coords));
-      d.addEventListener('touchstart', () => pickAddr(fullAddr, coords), { passive: true });
+      d.addEventListener('mousedown', () => pickAddr(label, coords));
+      d.addEventListener('touchstart', () => pickAddr(label, coords), { passive: true });
       sugg.appendChild(d);
     });
   } catch(e) {
