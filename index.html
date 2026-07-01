@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Строительный Трест 11</title>
-<script src="https://api-maps.yandex.ru/2.1/?apikey=c5cc456c-23ca-4443-a345-1c1453673b93&lang=ru_RU" type="text/javascript"></script>
+<script src="https://api-maps.yandex.ru/2.1/?apikey=c5cc456c-23ca-4443-a345-1c1453673b93&geocoder_apikey=741f481e-e908-4ffa-9b4e-e63d6cdb6627&lang=ru_RU" type="text/javascript"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <style>
@@ -662,18 +662,16 @@ async function doSearch(q) {
   sugg.innerHTML = '<div class="sg" style="color:#475569">Поиск…</div>';
   sugg.classList.add('on');
   try {
-    const url = `https://geocode-maps.yandex.ru/1.x/?apikey=741f481e-e908-4ffa-9b4e-e63d6cdb6627&geocode=${encodeURIComponent('Москва, ' + q)}&format=json&lang=ru_RU&results=5`;
-    const data = await (await fetch(url)).json();
-    const members = data.response.GeoObjectCollection.featureMember;
+    const result = await ymaps.geocode('Москва, ' + q, { results: 5 });
+    const items = result.geoObjects.toArray();
     sugg.innerHTML = '';
-    if (!members.length) {
+    if (!items.length) {
       sugg.innerHTML = '<div class="sg" style="color:#475569">Ничего не найдено</div>';
       return;
     }
-    members.forEach(({ GeoObject: g }) => {
-      const label = g.metaDataProperty.GeocoderMetaData.text;
-      const pos = g.Point.pos.split(' ');
-      const coords = [parseFloat(pos[1]), parseFloat(pos[0])]; // lon lat → lat lon
+    items.forEach(item => {
+      const label = item.getAddressLine();
+      const coords = item.geometry.getCoordinates();
       const d = document.createElement('div');
       d.className = 'sg';
       const parts = label.split(',');
