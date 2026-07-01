@@ -681,7 +681,8 @@ async function doSearch(q) {
       sugg.appendChild(d);
     });
   } catch(e) {
-    sugg.innerHTML = '<div class="sg" style="color:#475569">Ошибка соединения</div>';
+    console.error('ymaps.geocode error:', e);
+    sugg.innerHTML = `<div class="sg" style="color:#475569">Ошибка: ${e && (e.message || JSON.stringify(e))}</div>`;
   }
 }
 
