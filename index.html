@@ -191,6 +191,8 @@ html, body {
 
 .coord-hint { font-size:11px; margin-top:5px; min-height:16px; color:#475569; }
 .coord-hint.ok { color:var(--ok); }
+.dup-warn { font-size:11px; margin-top:5px; min-height:16px; color:var(--danger); display:none; }
+.dup-warn.on { display:block; }
 
 /* palette */
 .pal { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
@@ -348,6 +350,7 @@ html, body {
         <input class="inp" id="i-addr" type="text" placeholder="Введите адрес…" autocomplete="off">
         <div class="sugg" id="sugg"></div>
       </div>
+      <div class="dup-warn" id="dup-warn"></div>
     </div>
 
     <div class="or-line">или координаты через запятую</div>
@@ -404,6 +407,12 @@ const COLORS = [
 let db = null, map = null;
 let pts = [], layers = {}, editId = null, pCoords = null, color = COLORS[0];
 let prevM = null, searchT = null;
+let customColors = [];
+try { customColors = JSON.parse(localStorage.getItem('st11_custom_colors') || '[]'); } catch(e) {}
+
+function saveCustomColors() {
+  localStorage.setItem('st11_custom_colors', JSON.stringify(customColors));
+}
 
 // ── Persist (local) ──────────────────────────────────────
 function saveLocal() { try { localStorage.setItem('st11v2', JSON.stringify(pts)); } catch(e){} }
@@ -575,29 +584,53 @@ function closeSidebar() {
 function buildPal() {
   const el = document.getElementById('pal');
   el.innerHTML = '';
-  COLORS.forEach(c => {
+  const addSwatch = (c) => {
     const d = document.createElement('div');
     d.className = 'pal-c' + (c === color ? ' sel' : '');
     d.style.background = c;
     d.onclick = () => { color = c; buildPal(); };
     el.appendChild(d);
-  });
-  const sep = document.createElement('div');
-  sep.className = 'pal-sep';
-  el.appendChild(sep);
+  };
+  COLORS.forEach(addSwatch);
+  if (customColors.length) {
+    const sep = document.createElement('div');
+    sep.className = 'pal-sep';
+    el.appendChild(sep);
+    customColors.forEach(addSwatch);
+  }
+  const sep2 = document.createElement('div');
+  sep2.className = 'pal-sep';
+  el.appendChild(sep2);
   const wrap = document.createElement('div');
   wrap.className = 'pal-custom';
   wrap.title = 'Любой цвет';
   const inp = document.createElement('input');
   inp.type = 'color'; inp.value = color;
   inp.oninput = e => { color = e.target.value; buildPal(); };
+  inp.onchange = e => {
+    const c = e.target.value;
+    if (!COLORS.includes(c) && !customColors.includes(c)) {
+      customColors.unshift(c);
+      if (customColors.length > 8) customColors.pop();
+      saveCustomColors();
+    }
+    color = c; buildPal();
+  };
   const face = document.createElement('div');
   face.className = 'pal-custom-face';
-  face.style.background = COLORS.includes(color) ? '' : color;
-  face.style.border = COLORS.includes(color) ? '' : '3px solid #fff';
-  face.textContent = COLORS.includes(color) ? '+' : '';
+  const isPreset = COLORS.includes(color) || customColors.includes(color);
+  face.style.background = isPreset ? '' : color;
+  face.style.border = isPreset ? '' : '3px solid #fff';
+  face.textContent = isPreset ? '+' : '';
   wrap.appendChild(inp); wrap.appendChild(face);
   el.appendChild(wrap);
+}
+
+function checkDup(addr) {
+  const el = document.getElementById('dup-warn');
+  const dup = addr && pts.find(p => p.id !== editId && p.addr.toLowerCase() === addr.toLowerCase());
+  if (dup) { el.textContent = `Адрес уже используется: «${dup.name}»`; el.className = 'dup-warn on'; }
+  else { el.textContent = ''; el.className = 'dup-warn'; }
 }
 
 function setHint(c) {
@@ -620,7 +653,7 @@ function openAdd() {
   document.getElementById('m-title').textContent = 'Добавить точку';
   document.getElementById('i-name').value = '';
   document.getElementById('i-addr').value = '';
-  setCField(null); setHint(null); clearPrev(); buildPal();
+  setCField(null); setHint(null); clearPrev(); buildPal(); checkDup(null);
   document.getElementById('overlay').classList.add('on');
 }
 
@@ -632,7 +665,7 @@ function openEdit(id, e) {
   document.getElementById('m-title').textContent = 'Редактировать точку';
   document.getElementById('i-name').value = p.name;
   document.getElementById('i-addr').value = p.addr;
-  setCField(p.c); setHint(p.c); clearPrev(); buildPal();
+  setCField(p.c); setHint(p.c); clearPrev(); buildPal(); checkDup(p.addr);
   document.getElementById('overlay').classList.add('on');
 }
 
@@ -690,9 +723,11 @@ async function doSearch(q) {
 
 function pickAddr(fullAddr, c) {
   pCoords = c;
-  addrInp.value = fullAddr.split(',').slice(0, 2).join(',').trim();
+  const shortAddr = fullAddr.split(',').slice(0, 2).join(',').trim();
+  addrInp.value = shortAddr;
   sugg.classList.remove('on');
   setCField(c); setHint(c);
+  checkDup(shortAddr);
   clearPrev();
   prevM = new ymaps.Placemark(c, {}, { preset: 'islands#circleDotIcon', iconColor: color });
   map.geoObjects.add(prevM);
