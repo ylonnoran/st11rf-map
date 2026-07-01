@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Строительный Трест 11</title>
-<script src="https://api-maps.yandex.ru/2.1/?apikey=c5cc456c-23ca-4443-a345-1c1453673b93&geocoder_apikey=741f481e-e908-4ffa-9b4e-e63d6cdb6627&lang=ru_RU" type="text/javascript"></script>
+<script src="https://api-maps.yandex.ru/2.1/?apikey=c5cc456c-23ca-4443-a345-1c1453673b93&lang=ru_RU" type="text/javascript"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <style>
@@ -662,16 +662,16 @@ async function doSearch(q) {
   sugg.innerHTML = '<div class="sg" style="color:#475569">Поиск…</div>';
   sugg.classList.add('on');
   try {
-    const result = await ymaps.geocode('Москва, ' + q, { results: 5 });
-    const items = result.geoObjects.toArray();
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q + ' Москва')}&format=json&limit=5&countrycodes=ru&accept-language=ru`;
+    const data = await (await fetch(url, { headers: { 'User-Agent': 'ST11/2.0' } })).json();
     sugg.innerHTML = '';
-    if (!items.length) {
+    if (!data.length) {
       sugg.innerHTML = '<div class="sg" style="color:#475569">Ничего не найдено</div>';
       return;
     }
-    items.forEach(item => {
-      const label = item.getAddressLine();
-      const coords = item.geometry.getCoordinates();
+    data.forEach(item => {
+      const label = item.display_name;
+      const coords = [parseFloat(item.lat), parseFloat(item.lon)];
       const d = document.createElement('div');
       d.className = 'sg';
       const parts = label.split(',');
@@ -681,8 +681,7 @@ async function doSearch(q) {
       sugg.appendChild(d);
     });
   } catch(e) {
-    console.error('ymaps.geocode error:', e);
-    sugg.innerHTML = `<div class="sg" style="color:#475569">Ошибка: ${e && (e.message || JSON.stringify(e))}</div>`;
+    sugg.innerHTML = '<div class="sg" style="color:#475569">Ошибка соединения</div>';
   }
 }
 
@@ -767,8 +766,6 @@ function getDefaults() {
 
 // ── Boot ─────────────────────────────────────────────────
 ymaps.ready(() => {
-  ymaps.config.set('geocoder.apikey', '741f481e-e908-4ffa-9b4e-e63d6cdb6627');
-
   map = new ymaps.Map('map', {
     center: [55.75, 37.62],
     zoom: 11,
