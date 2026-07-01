@@ -767,6 +767,8 @@ function getDefaults() {
 
 // ── Boot ─────────────────────────────────────────────────
 ymaps.ready(() => {
+  ymaps.config.set('geocoder.apikey', '741f481e-e908-4ffa-9b4e-e63d6cdb6627');
+
   map = new ymaps.Map('map', {
     center: [55.75, 37.62],
     zoom: 11,
