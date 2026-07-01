@@ -711,14 +711,14 @@ async function doSearch(q) {
     members.forEach(({ GeoObject: g }) => {
       const name = g.name;
       const desc = g.description || '';
-      const label = desc ? `${name}, ${desc}` : name;
+      const addr = name + (desc ? ', ' + desc : '');
       const pos = g.Point.pos.split(' ');
       const coords = [parseFloat(pos[1]), parseFloat(pos[0])];
       const d = document.createElement('div');
       d.className = 'sg';
       d.innerHTML = `<b>${name}</b>${desc ? ', ' + desc : ''}`;
-      d.addEventListener('mousedown', () => pickAddr(label, coords));
-      d.addEventListener('touchstart', () => pickAddr(label, coords), { passive: true });
+      d.addEventListener('mousedown', () => pickAddr(addr, coords));
+      d.addEventListener('touchstart', () => pickAddr(addr, coords), { passive: true });
       sugg.appendChild(d);
     });
   } catch(e) {
@@ -726,13 +726,12 @@ async function doSearch(q) {
   }
 }
 
-function pickAddr(fullAddr, c) {
+function pickAddr(addr, c) {
   pCoords = c;
-  const shortAddr = fullAddr.split(',').slice(0, 2).join(',').trim();
-  addrInp.value = shortAddr;
+  addrInp.value = addr;
   sugg.classList.remove('on');
   setCField(c); setHint(c);
-  checkDup(shortAddr, c);
+  checkDup(addr, c);
   clearPrev();
   prevM = new ymaps.Placemark(c, {}, { preset: 'islands#circleDotIcon', iconColor: color });
   map.geoObjects.add(prevM);
