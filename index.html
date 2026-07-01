@@ -626,10 +626,15 @@ function buildPal() {
   el.appendChild(wrap);
 }
 
-function checkDup(addr) {
+function checkDup(addr, coords) {
   const el = document.getElementById('dup-warn');
-  const dup = addr && pts.find(p => p.id !== editId && p.addr.toLowerCase() === addr.toLowerCase());
-  if (dup) { el.textContent = `Адрес уже используется: «${dup.name}»`; el.className = 'dup-warn on'; }
+  const dup = pts.find(p => {
+    if (p.id === editId) return false;
+    if (addr && p.addr && p.addr.toLowerCase() === addr.toLowerCase()) return true;
+    if (coords && p.c && Math.abs(p.c[0] - coords[0]) < 0.0001 && Math.abs(p.c[1] - coords[1]) < 0.0001) return true;
+    return false;
+  });
+  if (dup) { el.textContent = `Уже существует точка «${dup.name}»`; el.className = 'dup-warn on'; }
   else { el.textContent = ''; el.className = 'dup-warn'; }
 }
 
@@ -653,7 +658,7 @@ function openAdd() {
   document.getElementById('m-title').textContent = 'Добавить точку';
   document.getElementById('i-name').value = '';
   document.getElementById('i-addr').value = '';
-  setCField(null); setHint(null); clearPrev(); buildPal(); checkDup(null);
+  setCField(null); setHint(null); clearPrev(); buildPal(); checkDup(null, null);
   document.getElementById('overlay').classList.add('on');
 }
 
@@ -665,7 +670,7 @@ function openEdit(id, e) {
   document.getElementById('m-title').textContent = 'Редактировать точку';
   document.getElementById('i-name').value = p.name;
   document.getElementById('i-addr').value = p.addr;
-  setCField(p.c); setHint(p.c); clearPrev(); buildPal(); checkDup(p.addr);
+  setCField(p.c); setHint(p.c); clearPrev(); buildPal(); checkDup(p.addr, p.c);
   document.getElementById('overlay').classList.add('on');
 }
 
@@ -727,7 +732,7 @@ function pickAddr(fullAddr, c) {
   addrInp.value = shortAddr;
   sugg.classList.remove('on');
   setCField(c); setHint(c);
-  checkDup(shortAddr);
+  checkDup(shortAddr, c);
   clearPrev();
   prevM = new ymaps.Placemark(c, {}, { preset: 'islands#circleDotIcon', iconColor: color });
   map.geoObjects.add(prevM);
@@ -742,6 +747,7 @@ function onCoords() {
   if (parts.length >= 2 && !isNaN(lat) && !isNaN(lon) && lat>=-90 && lat<=90 && lon>=-180 && lon<=180) {
     pCoords = [lat, lon];
     setHint([lat, lon]);
+    checkDup(null, [lat, lon]);
     clearPrev();
     prevM = new ymaps.Placemark([lat, lon], {}, { preset: 'islands#circleDotIcon', iconColor: color });
     map.geoObjects.add(prevM);
